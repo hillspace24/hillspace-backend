@@ -1,0 +1,651 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "HillSpace API",
+    "description": "Estate management backend — auth, listings, search, verification, escrow",
+    "version": "1.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local"
+    }
+  ],
+  "tags": [
+    { "name": "Auth" },
+    { "name": "Users" },
+    { "name": "Listings" },
+    { "name": "Verification" },
+    { "name": "Escrow" }
+  ],
+  "components": {
+    "securitySchemes": {
+      "access-token": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "RegisterDto": {
+        "type": "object",
+        "required": ["firstName", "lastName", "email", "phone", "password"],
+        "properties": {
+          "firstName": { "type": "string", "example": "Ada" },
+          "lastName": { "type": "string", "example": "Lovelace" },
+          "email": { "type": "string", "format": "email", "example": "ada@hillspace.test" },
+          "phone": { "type": "string", "example": "+2348012345678" },
+          "password": { "type": "string", "minLength": 8, "example": "password123" },
+          "role": {
+            "type": "string",
+            "enum": ["buyer", "seller", "agent", "admin"],
+            "example": "buyer"
+          }
+        }
+      },
+      "LoginDto": {
+        "type": "object",
+        "required": ["email", "password"],
+        "properties": {
+          "email": { "type": "string", "format": "email", "example": "ada@hillspace.test" },
+          "password": { "type": "string", "example": "password123" }
+        }
+      },
+      "RefreshTokenDto": {
+        "type": "object",
+        "required": ["refreshToken"],
+        "properties": {
+          "refreshToken": { "type": "string" }
+        }
+      },
+      "UpdateUserDto": {
+        "type": "object",
+        "properties": {
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "phone": { "type": "string" }
+        }
+      },
+      "LocationDto": {
+        "type": "object",
+        "required": ["address", "city", "state"],
+        "properties": {
+          "address": { "type": "string", "example": "12 Admiralty Way" },
+          "city": { "type": "string", "example": "Lagos" },
+          "state": { "type": "string", "example": "Lagos" },
+          "country": { "type": "string", "example": "Nigeria" },
+          "lat": { "type": "number" },
+          "lng": { "type": "number" }
+        }
+      },
+      "CreateListingDto": {
+        "type": "object",
+        "required": ["title", "description", "propertyType", "purpose", "price", "location"],
+        "properties": {
+          "title": { "type": "string", "example": "4-bed duplex in Lekki" },
+          "description": { "type": "string" },
+          "propertyType": {
+            "type": "string",
+            "enum": ["apartment", "house", "land", "commercial", "duplex", "bungalow"]
+          },
+          "purpose": { "type": "string", "enum": ["sale", "rent"] },
+          "price": { "type": "number", "example": 85000000 },
+          "currency": { "type": "string", "example": "NGN" },
+          "bedrooms": { "type": "number", "example": 4 },
+          "bathrooms": { "type": "number", "example": 5 },
+          "areaSqm": { "type": "number", "example": 320 },
+          "location": { "$ref": "#/components/schemas/LocationDto" },
+          "amenities": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["parking", "security"]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "active", "under_offer", "sold", "rented", "archived"]
+          }
+        }
+      },
+      "UpdateListingDto": {
+        "allOf": [{ "$ref": "#/components/schemas/CreateListingDto" }]
+      },
+      "CreateEscrowDto": {
+        "type": "object",
+        "required": ["listingId", "amount"],
+        "properties": {
+          "listingId": { "type": "string", "example": "665f1a2b3c4d5e6f7a8b9c0d" },
+          "amount": { "type": "number", "example": 85000000 },
+          "currency": { "type": "string", "example": "NGN" }
+        }
+      },
+      "FundEscrowDto": {
+        "type": "object",
+        "required": ["fundingReference"],
+        "properties": {
+          "fundingReference": { "type": "string", "example": "TRF-20260711-001" },
+          "note": { "type": "string" }
+        }
+      },
+      "TransitionEscrowDto": {
+        "type": "object",
+        "properties": {
+          "note": { "type": "string" }
+        }
+      },
+      "DisputeEscrowDto": {
+        "type": "object",
+        "required": ["reason"],
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "example": "Property condition does not match listing photos"
+          }
+        }
+      },
+      "ReviewVerificationDto": {
+        "type": "object",
+        "required": ["status"],
+        "properties": {
+          "status": { "type": "string", "enum": ["approved", "rejected"] },
+          "reviewNotes": { "type": "string" }
+        }
+      },
+      "AuthTokensResponse": {
+        "type": "object",
+        "properties": {
+          "accessToken": { "type": "string" },
+          "refreshToken": { "type": "string" },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "email": { "type": "string" },
+              "role": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registered",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login and receive JWT tokens",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LoginDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Logged in",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Refresh access token",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RefreshTokenDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Tokens refreshed",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AuthTokensResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Logout and invalidate refresh token",
+        "security": [{ "access-token": [] }],
+        "responses": {
+          "200": { "description": "Logged out" }
+        }
+      }
+    },
+    "/api/users/me": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get current user profile",
+        "security": [{ "access-token": [] }],
+        "responses": {
+          "200": { "description": "Current user" }
+        }
+      },
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update current user profile",
+        "security": [{ "access-token": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateUserDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated user" }
+        }
+      }
+    },
+    "/api/listings": {
+      "get": {
+        "tags": ["Listings"],
+        "summary": "Search and filter listings",
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "propertyType",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["apartment", "house", "land", "commercial", "duplex", "bungalow"]
+            }
+          },
+          {
+            "name": "purpose",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["sale", "rent"] }
+          },
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          { "name": "state", "in": "query", "schema": { "type": "string" } },
+          { "name": "minPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "maxPrice", "in": "query", "schema": { "type": "number" } },
+          { "name": "bedrooms", "in": "query", "schema": { "type": "number" } },
+          { "name": "bathrooms", "in": "query", "schema": { "type": "number" } },
+          { "name": "page", "in": "query", "schema": { "type": "number", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "number", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated listings" }
+        }
+      },
+      "post": {
+        "tags": ["Listings"],
+        "summary": "Create a listing",
+        "security": [{ "access-token": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateListingDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Listing created" }
+        }
+      }
+    },
+    "/api/listings/{id}": {
+      "get": {
+        "tags": ["Listings"],
+        "summary": "Get listing by id",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Listing" }
+        }
+      },
+      "patch": {
+        "tags": ["Listings"],
+        "summary": "Update a listing",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateListingDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated listing" }
+        }
+      },
+      "delete": {
+        "tags": ["Listings"],
+        "summary": "Delete a listing",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" }
+        }
+      }
+    },
+    "/api/listings/{id}/images": {
+      "post": {
+        "tags": ["Listings"],
+        "summary": "Upload listing images",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "images": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "binary" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Images uploaded" }
+        }
+      }
+    },
+    "/api/listings/{id}/publish": {
+      "post": {
+        "tags": ["Listings"],
+        "summary": "Publish a listing (set status active)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "201": { "description": "Published" }
+        }
+      }
+    },
+    "/api/verification": {
+      "post": {
+        "tags": ["Verification"],
+        "summary": "Submit KYC, agent, or listing verification docs",
+        "security": [{ "access-token": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["type", "documents"],
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["kyc", "agent", "listing"]
+                  },
+                  "listingId": { "type": "string" },
+                  "notes": { "type": "string" },
+                  "documents": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "binary" }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Verification submitted" }
+        }
+      }
+    },
+    "/api/verification/me": {
+      "get": {
+        "tags": ["Verification"],
+        "summary": "List my verification requests",
+        "security": [{ "access-token": [] }],
+        "responses": {
+          "200": { "description": "My requests" }
+        }
+      }
+    },
+    "/api/verification/pending": {
+      "get": {
+        "tags": ["Verification"],
+        "summary": "List pending verification requests (admin)",
+        "security": [{ "access-token": [] }],
+        "responses": {
+          "200": { "description": "Pending requests" }
+        }
+      }
+    },
+    "/api/verification/{id}/review": {
+      "patch": {
+        "tags": ["Verification"],
+        "summary": "Approve or reject a verification request (admin)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ReviewVerificationDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Reviewed" }
+        }
+      }
+    },
+    "/api/escrow": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Create an escrow deal on a listing",
+        "security": [{ "access-token": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Escrow created" }
+        }
+      }
+    },
+    "/api/escrow/me": {
+      "get": {
+        "tags": ["Escrow"],
+        "summary": "List my escrow deals",
+        "security": [{ "access-token": [] }],
+        "responses": {
+          "200": { "description": "My deals" }
+        }
+      }
+    },
+    "/api/escrow/{id}": {
+      "get": {
+        "tags": ["Escrow"],
+        "summary": "Get escrow deal by id",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Escrow deal" }
+        }
+      }
+    },
+    "/api/escrow/{id}/fund": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Mark escrow as funded (buyer)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/FundEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Funded" }
+        }
+      }
+    },
+    "/api/escrow/{id}/inspection": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Move escrow to inspection",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransitionEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Inspection started" }
+        }
+      }
+    },
+    "/api/escrow/{id}/release": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Release escrow funds to seller",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransitionEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Released" }
+        }
+      }
+    },
+    "/api/escrow/{id}/refund": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Refund escrow to buyer",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransitionEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Refunded" }
+        }
+      }
+    },
+    "/api/escrow/{id}/dispute": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Open an escrow dispute",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/DisputeEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Disputed" }
+        }
+      }
+    },
+    "/api/escrow/{id}/cancel": {
+      "post": {
+        "tags": ["Escrow"],
+        "summary": "Cancel an initiated escrow",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransitionEscrowDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Cancelled" }
+        }
+      }
+    }
+  }
+}

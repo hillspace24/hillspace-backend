@@ -1,0 +1,494 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "HillSpace API",
+    "description": "Estate management backend — Auth, Listings, Search, Verification, Escrow.\n\n1. Set `baseUrl` (default http://localhost:3000/api)\n2. Run **Auth → Register** or **Login** — tokens are saved automatically\n3. Authenticated requests use `{{accessToken}}`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "listingId", "value": "" },
+    { "key": "escrowId", "value": "" },
+    { "key": "verificationId", "value": "" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ada\",\n  \"lastName\": \"Lovelace\",\n  \"email\": \"ada@hillspace.test\",\n  \"phone\": \"+2348012345678\",\n  \"password\": \"password123\",\n  \"role\": \"buyer\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Register a user. Role can be buyer | seller | agent (not admin)."
+          }
+        },
+        {
+          "name": "Register Seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Chioma\",\n  \"lastName\": \"Okeke\",\n  \"email\": \"seller@hillspace.test\",\n  \"phone\": \"+2348098765432\",\n  \"password\": \"password123\",\n  \"role\": \"seller\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ada@hillspace.test\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Refresh",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data.accessToken) pm.collectionVariables.set('accessToken', data.accessToken);",
+                  "  if (data.refreshToken) pm.collectionVariables.set('refreshToken', data.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/users/me"
+          }
+        },
+        {
+          "name": "Update Me",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Ada\",\n  \"phone\": \"+2348011112222\"\n}"
+            },
+            "url": "{{baseUrl}}/users/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Listings",
+      "item": [
+        {
+          "name": "Search Listings",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/listings?q=lekki&city=Lagos&purpose=sale&minPrice=1000000&maxPrice=100000000&page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["listings"],
+              "query": [
+                { "key": "q", "value": "lekki" },
+                { "key": "city", "value": "Lagos" },
+                { "key": "purpose", "value": "sale" },
+                { "key": "propertyType", "value": "duplex", "disabled": true },
+                { "key": "minPrice", "value": "1000000" },
+                { "key": "maxPrice", "value": "100000000" },
+                { "key": "bedrooms", "value": "3", "disabled": true },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Listing",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}"
+          }
+        },
+        {
+          "name": "Create Listing",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data._id) pm.collectionVariables.set('listingId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"4-bed duplex in Lekki\",\n  \"description\": \"Spacious duplex with BQ and parking\",\n  \"propertyType\": \"duplex\",\n  \"purpose\": \"sale\",\n  \"price\": 85000000,\n  \"currency\": \"NGN\",\n  \"bedrooms\": 4,\n  \"bathrooms\": 5,\n  \"areaSqm\": 320,\n  \"location\": {\n    \"address\": \"12 Admiralty Way\",\n    \"city\": \"Lagos\",\n    \"state\": \"Lagos\",\n    \"country\": \"Nigeria\"\n  },\n  \"amenities\": [\"parking\", \"security\", \"generator\"]\n}"
+            },
+            "url": "{{baseUrl}}/listings",
+            "description": "Requires seller | agent | admin role."
+          }
+        },
+        {
+          "name": "Update Listing",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 82000000,\n  \"bedrooms\": 4\n}"
+            },
+            "url": "{{baseUrl}}/listings/{{listingId}}"
+          }
+        },
+        {
+          "name": "Upload Listing Images",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Select one or more image files"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/listings/{{listingId}}/images"
+          }
+        },
+        {
+          "name": "Publish Listing",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}/publish"
+          }
+        },
+        {
+          "name": "Delete Listing",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Verification",
+      "item": [
+        {
+          "name": "Submit KYC",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data._id) pm.collectionVariables.set('verificationId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "type", "value": "kyc", "type": "text" },
+                { "key": "notes", "value": "National ID + utility bill", "type": "text" },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": [],
+                  "description": "Attach ID / proof documents"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/verification"
+          }
+        },
+        {
+          "name": "Submit Listing Verification",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "type", "value": "listing", "type": "text" },
+                { "key": "listingId", "value": "{{listingId}}", "type": "text" },
+                { "key": "notes", "value": "Title deed attached", "type": "text" },
+                {
+                  "key": "documents",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/verification"
+          }
+        },
+        {
+          "name": "My Verification Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/verification/me"
+          }
+        },
+        {
+          "name": "List Pending (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/verification/pending"
+          }
+        },
+        {
+          "name": "Review Verification (Admin)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"approved\",\n  \"reviewNotes\": \"Documents look valid\"\n}"
+            },
+            "url": "{{baseUrl}}/verification/{{verificationId}}/review"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Escrow",
+      "item": [
+        {
+          "name": "Create Escrow",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data._id) pm.collectionVariables.set('escrowId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"listingId\": \"{{listingId}}\",\n  \"amount\": 85000000,\n  \"currency\": \"NGN\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow",
+            "description": "Buyer creates an escrow deal on an active listing."
+          }
+        },
+        {
+          "name": "My Escrow Deals",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/escrow/me"
+          }
+        },
+        {
+          "name": "Get Escrow",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/escrow/{{escrowId}}"
+          }
+        },
+        {
+          "name": "Fund Escrow",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fundingReference\": \"TRF-20260711-001\",\n  \"note\": \"Bank transfer completed\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow/{{escrowId}}/fund"
+          }
+        },
+        {
+          "name": "Start Inspection",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Buyer inspecting property\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow/{{escrowId}}/inspection"
+          }
+        },
+        {
+          "name": "Release Escrow",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Deal completed successfully\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow/{{escrowId}}/release"
+          }
+        },
+        {
+          "name": "Dispute Escrow",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Property condition does not match listing photos\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow/{{escrowId}}/dispute"
+          }
+        },
+        {
+          "name": "Refund Escrow",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Refund approved\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow/{{escrowId}}/refund"
+          }
+        },
+        {
+          "name": "Cancel Escrow",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Buyer cancelled before funding\"\n}"
+            },
+            "url": "{{baseUrl}}/escrow/{{escrowId}}/cancel"
+          }
+        }
+      ]
+    }
+  ]
+}
