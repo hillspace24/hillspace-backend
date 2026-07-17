@@ -223,13 +223,56 @@
           ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "header": [],
             "body": {
-              "mode": "raw",
-              "raw": "{\n  \"title\": \"4-bed duplex in Lekki\",\n  \"description\": \"Spacious duplex with BQ and parking\",\n  \"propertyType\": \"duplex\",\n  \"purpose\": \"sale\",\n  \"price\": 85000000,\n  \"currency\": \"NGN\",\n  \"bedrooms\": 4,\n  \"bathrooms\": 5,\n  \"areaSqm\": 320,\n  \"location\": {\n    \"address\": \"12 Admiralty Way\",\n    \"city\": \"Lagos\",\n    \"state\": \"Lagos\",\n    \"country\": \"Nigeria\"\n  },\n  \"amenities\": [\"parking\", \"security\", \"generator\"]\n}"
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "4-bed duplex in Lekki", "type": "text" },
+                {
+                  "key": "description",
+                  "value": "Spacious duplex with BQ and parking",
+                  "type": "text"
+                },
+                { "key": "propertyType", "value": "duplex", "type": "text" },
+                { "key": "purpose", "value": "sale", "type": "text" },
+                { "key": "price", "value": "85000000", "type": "text" },
+                { "key": "currency", "value": "NGN", "type": "text" },
+                { "key": "bedrooms", "value": "4", "type": "text" },
+                { "key": "bathrooms", "value": "5", "type": "text" },
+                { "key": "areaSqm", "value": "320", "type": "text" },
+                {
+                  "key": "location",
+                  "value": "{\"address\":\"12 Admiralty Way\",\"city\":\"Lagos\",\"state\":\"Lagos\",\"country\":\"Nigeria\"}",
+                  "type": "text",
+                  "description": "JSON string for nested location"
+                },
+                {
+                  "key": "amenities",
+                  "value": "[\"parking\",\"security\",\"generator\"]",
+                  "type": "text"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image 1 — repeat this field for more photos (same key: images), up to 10"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image 2 (optional)"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image 3 (optional)"
+                }
+              ]
             },
             "url": "{{baseUrl}}/listings",
-            "description": "Requires seller | agent | admin role."
+            "description": "Requires seller | agent | admin role. Images upload to Cloudinary on create (same pattern as GiftGo products)."
           }
         },
         {
@@ -256,7 +299,19 @@
                   "key": "images",
                   "type": "file",
                   "src": [],
-                  "description": "Select one or more image files"
+                  "description": "Image 1 — repeat key \"images\" for more (up to 10)"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image 2 (optional)"
+                },
+                {
+                  "key": "images",
+                  "type": "file",
+                  "src": [],
+                  "description": "Image 3 (optional)"
                 }
               ]
             },

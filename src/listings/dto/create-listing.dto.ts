@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -17,6 +17,30 @@ import {
   PropertyType,
   SpaceKind,
 } from '../../common/enums/listing-status.enum';
+
+/** Parse JSON strings / single values from multipart form-data. */
+function parseJsonField({ value }: { value: unknown }) {
+  if (typeof value !== 'string') return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function parseStringArray({ value }: { value: unknown }) {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string') return value;
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed;
+  } catch {
+    // fall through
+  }
+  return value.includes(',')
+    ? value.split(',').map((item) => item.trim()).filter(Boolean)
+    : [value];
+}
 
 class LocationDto {
   @ApiProperty({ example: '12 Admiralty Way' })
@@ -143,13 +167,19 @@ export class CreateListingDto {
   @IsString()
   parking?: string;
 
-  @ApiProperty({ type: LocationDto })
+  @ApiProperty({
+    type: LocationDto,
+    description:
+      'For multipart/form-data, send as a JSON string, e.g. {"address":"...","city":"...","state":"..."}',
+  })
+  @Transform(parseJsonField)
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto;
 
   @ApiPropertyOptional({ type: [String], example: ['parking', 'security'] })
   @IsOptional()
+  @Transform(parseStringArray)
   @IsArray()
   @IsString({ each: true })
   amenities?: string[];
@@ -159,6 +189,7 @@ export class CreateListingDto {
     example: ['Security', 'Water Supply', 'Parking', 'Electricity'],
   })
   @IsOptional()
+  @Transform(parseStringArray)
   @IsArray()
   @IsString({ each: true })
   utilities?: string[];

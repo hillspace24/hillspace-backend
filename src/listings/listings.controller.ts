@@ -11,7 +11,10 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FileFieldsInterceptor,
+  FilesInterceptor,
+} from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -31,6 +34,14 @@ import { CreateListingDto } from './dto/create-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingsService } from './listings.service';
+
+const listingImagesInterceptor = FileFieldsInterceptor(
+  [{ name: 'images', maxCount: 10 }],
+  {
+    storage: memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+  },
+);
 
 @ApiTags('Listings')
 @Controller('listings')
@@ -74,27 +85,114 @@ export class ListingsController {
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SELLER, Role.AGENT, Role.ADMIN)
-  @ApiOperation({ summary: 'Create a listing' })
+  @ApiOperation({
+    summary:
+      'Create a listing with optional images (1–10 files; stored as an array)',
+  })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({
+    description:
+      'Send JSON, or multipart/form-data with listing fields + images. Attach one or many files under the same field name "images" (max 10). For multipart, pass location/amenities/utilities as JSON strings.',
+    schema: {
+      type: 'object',
+      required: ['title', 'description', 'propertyType', 'purpose', 'price', 'location'],
+      properties: {
+        title: { type: 'string', example: '4-bed duplex in Lekki' },
+        description: {
+          type: 'string',
+          example: 'Spacious duplex with BQ and parking',
+        },
+        propertyType: { type: 'string', example: 'duplex' },
+        purpose: { type: 'string', example: 'sale' },
+        price: { type: 'number', example: 85000000 },
+        currency: { type: 'string', example: 'NGN' },
+        bedrooms: { type: 'number', example: 4 },
+        bathrooms: { type: 'number', example: 5 },
+        location: {
+          type: 'string',
+          example:
+            '{"address":"12 Admiralty Way","city":"Lagos","state":"Lagos","country":"Nigeria"}',
+        },
+        amenities: {
+          type: 'string',
+          example: '["parking","security","generator"]',
+        },
+        utilities: {
+          type: 'string',
+          example: '["Water Supply","Electricity"]',
+        },
+        images: {
+          type: 'array',
+          maxItems: 10,
+          minItems: 1,
+          description: 'One or more listing photos (same form field name: images)',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  @UseInterceptors(listingImagesInterceptor)
   create(
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') role: Role,
     @Body() dto: CreateListingDto,
+    @UploadedFiles()
+    files?: {
+      images?: Express.Multer.File[];
+    },
   ) {
-    return this.listingsService.create(userId, role, dto);
+    return this.listingsService.create(
+      userId,
+      role,
+      dto,
+      files?.images ?? [],
+    );
   }
 
   @Patch(':id')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SELLER, Role.AGENT, Role.ADMIN)
-  @ApiOperation({ summary: 'Update a listing' })
+  @ApiOperation({
+    summary:
+      'Update a listing; optional new images append to the existing images array (max 10 per request)',
+  })
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({
+    description:
+      'Partial listing fields. To add photos, use multipart and attach one or many files under "images".',
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string' },
+        price: { type: 'number' },
+        images: {
+          type: 'array',
+          maxItems: 10,
+          description: 'Additional listing photos (appended to existing images)',
+          items: { type: 'string', format: 'binary' },
+        },
+      },
+    },
+  })
+  @UseInterceptors(listingImagesInterceptor)
   update(
     @Param('id') id: string,
     @CurrentUser('sub') userId: string,
     @CurrentUser('role') role: Role,
     @Body() dto: UpdateListingDto,
+    @UploadedFiles()
+    files?: {
+      images?: Express.Multer.File[];
+    },
   ) {
-    return this.listingsService.update(id, userId, role, dto);
+    return this.listingsService.update(
+      id,
+      userId,
+      role,
+      dto,
+      files?.images ?? [],
+    );
   }
 
   @Delete(':id')
@@ -114,7 +212,9 @@ export class ListingsController {
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SELLER, Role.AGENT, Role.ADMIN)
-  @ApiOperation({ summary: 'Upload listing images' })
+  @ApiOperation({
+    summary: 'Upload listing images (1–10 files; appended to images array)',
+  })
   @ApiConsumes('multipart/form-data')
   @ApiBody({
     schema: {
@@ -122,6 +222,8 @@ export class ListingsController {
       properties: {
         images: {
           type: 'array',
+          maxItems: 10,
+          description: 'One or more image files under the field name "images"',
           items: { type: 'string', format: 'binary' },
         },
       },

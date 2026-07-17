@@ -36,6 +36,18 @@ export class CloudinaryService {
   }
 
   async deleteAsset(publicId: string): Promise<void> {
-    await cloudinary.uploader.destroy(publicId);
+    if (!publicId) return;
+
+    const result = await cloudinary.uploader.destroy(publicId, {
+      invalidate: true,
+    });
+
+    // Ownership docs / non-images may be stored as raw when uploaded with resource_type auto
+    if (result?.result === 'not found') {
+      await cloudinary.uploader.destroy(publicId, {
+        resource_type: 'raw',
+        invalidate: true,
+      });
+    }
   }
 }

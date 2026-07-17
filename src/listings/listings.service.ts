@@ -28,9 +28,13 @@ export class ListingsService {
     ownerId: string,
     role: Role,
     dto: CreateListingDto,
+    files: Express.Multer.File[] = [],
   ): Promise<ListingDocument> {
+    const uploadedImages = await this.uploadListingImages(files);
+
     const payload: Partial<Listing> = {
       ...dto,
+      images: uploadedImages,
       owner: new Types.ObjectId(ownerId),
       status: dto.status ?? ListingStatus.DRAFT,
       verificationStatus: VerificationStatus.UNVERIFIED,
@@ -68,18 +72,30 @@ export class ListingsService {
     userId: string,
     role: Role,
     dto: UpdateListingDto,
+    files: Express.Multer.File[] = [],
   ): Promise<ListingDocument> {
     const listing = await this.findOwned(id, userId, role);
     Object.assign(listing, dto);
+
+    if (files.length) {
+      const uploadedImages = await this.uploadListingImages(files);
+      listing.images.push(...uploadedImages);
+    }
+
     return listing.save();
   }
 
   async remove(id: string, userId: string, role: Role): Promise<{ message: string }> {
     const listing = await this.findOwned(id, userId, role);
 
+    const cloudinaryIds = [
+      ...listing.images.map((image) => image.publicId),
+      ...listing.ownershipDocs.map((doc) => doc.publicId),
+    ].filter(Boolean);
+
     await Promise.all(
-      listing.images.map((image) =>
-        this.cloudinaryService.deleteAsset(image.publicId).catch(() => undefined),
+      cloudinaryIds.map((publicId) =>
+        this.cloudinaryService.deleteAsset(publicId).catch(() => undefined),
       ),
     );
 
@@ -94,19 +110,21 @@ export class ListingsService {
     files: Express.Multer.File[],
   ): Promise<ListingDocument> {
     const listing = await this.findOwned(id, userId, role);
+    listing.images.push(...(await this.uploadListingImages(files)));
+    return listing.save();
+  }
+
+  private async uploadListingImages(files: Express.Multer.File[]) {
+    if (!files.length) return [];
 
     const uploads = await Promise.all(
       files.map((file) => this.cloudinaryService.uploadImage(file, 'listings')),
     );
 
-    listing.images.push(
-      ...uploads.map((upload) => ({
-        url: upload.secure_url,
-        publicId: upload.public_id,
-      })),
-    );
-
-    return listing.save();
+    return uploads.map((upload) => ({
+      url: upload.secure_url,
+      publicId: upload.public_id,
+    }));
   }
 
   async uploadOwnershipDocs(

@@ -311,11 +311,43 @@
       },
       "post": {
         "tags": ["Listings"],
-        "summary": "Create a listing",
+        "summary": "Create a listing (optional images via multipart/form-data)",
         "security": [{ "access-token": [] }],
         "requestBody": {
           "required": true,
           "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "title",
+                  "description",
+                  "propertyType",
+                  "purpose",
+                  "price",
+                  "location"
+                ],
+                "properties": {
+                  "title": { "type": "string" },
+                  "description": { "type": "string" },
+                  "propertyType": { "type": "string" },
+                  "purpose": { "type": "string" },
+                  "price": { "type": "number" },
+                  "location": {
+                    "type": "string",
+                    "description": "JSON string of location object"
+                  },
+                  "amenities": {
+                    "type": "string",
+                    "description": "JSON array string"
+                  },
+                  "images": {
+                    "type": "array",
+                    "items": { "type": "string", "format": "binary" }
+                  }
+                }
+              }
+            },
             "application/json": {
               "schema": { "$ref": "#/components/schemas/CreateListingDto" }
             }
