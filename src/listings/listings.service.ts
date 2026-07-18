@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,19 +9,71 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { Role } from '../common/enums/role.enum';
-import { ListingStatus } from '../common/enums/listing-status.enum';
+import {
+  ListingSortBy,
+  ListingStatus,
+} from '../common/enums/listing-status.enum';
 import { VerificationStatus } from '../common/enums/verification-status.enum';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { RateListingDto } from './dto/rate-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { Favorite } from './favorite.schema';
 import { Listing, ListingDocument } from './listing.schema';
+import { Rating } from './rating.schema';
+
+function rangeFilter(
+  min?: number,
+  max?: number,
+): Record<string, number> | undefined {
+  if (min === undefined && max === undefined) return undefined;
+  const range: Record<string, number> = {};
+  if (min !== undefined) range.$gte = min;
+  if (max !== undefined) range.$lte = max;
+  return range;
+}
+
+/** Approximate bounding box for radiusKm around lat/lng (degrees). */
+function geoBoundingBox(lat: number, lng: number, radiusKm: number) {
+  const latDelta = radiusKm / 111.32;
+  const lngDelta =
+    radiusKm / (111.32 * Math.max(Math.cos((lat * Math.PI) / 180), 0.01));
+  return {
+    'location.lat': { $gte: lat - latDelta, $lte: lat + latDelta },
+    'location.lng': { $gte: lng - lngDelta, $lte: lng + lngDelta },
+  };
+}
+
+function sortForSearch(
+  q: string | undefined,
+  sortBy?: ListingSortBy,
+): Record<string, 1 | -1 | { $meta: string }> {
+  if (q) {
+    return { score: { $meta: 'textScore' } };
+  }
+  switch (sortBy) {
+    case ListingSortBy.PRICE_ASC:
+      return { price: 1 };
+    case ListingSortBy.PRICE_DESC:
+      return { price: -1 };
+    case ListingSortBy.RATING:
+      return { ratingAvg: -1, ratingCount: -1 };
+    case ListingSortBy.NEWEST:
+    default:
+      return { createdAt: -1 };
+  }
+}
+
+function roundRating(avg: number): number {
+  return Math.round(avg * 10) / 10;
+}
 
 @Injectable()
 export class ListingsService {
   constructor(
     @InjectModel(Listing.name) private readonly listingModel: Model<Listing>,
     @InjectModel(Favorite.name) private readonly favoriteModel: Model<Favorite>,
+    @InjectModel(Rating.name) private readonly ratingModel: Model<Rating>,
     private readonly cloudinaryService: CloudinaryService,
   ) {}
 
@@ -192,12 +245,113 @@ export class ListingsService {
       .sort({ createdAt: -1 });
   }
 
+  async rateListing(userId: string, listingId: string, dto: RateListingDto) {
+    const listing = await this.listingModel.findById(listingId).select('owner agent');
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+    if (listing.owner.toString() === userId) {
+      throw new BadRequestException('You cannot rate your own listing');
+    }
+    if (listing.agent?.toString() === userId) {
+      throw new BadRequestException('You cannot rate your own listing');
+    }
+
+    const rating = await this.ratingModel.findOneAndUpdate(
+      {
+        user: new Types.ObjectId(userId),
+        listing: new Types.ObjectId(listingId),
+      },
+      {
+        $set: {
+          stars: dto.stars,
+          ...(dto.comment !== undefined ? { comment: dto.comment } : {}),
+        },
+        $setOnInsert: {
+          user: new Types.ObjectId(userId),
+          listing: new Types.ObjectId(listingId),
+        },
+      },
+      { upsert: true, new: true, runValidators: true },
+    );
+
+    const listingStats = await this.recalculateListingRating(listingId);
+    return { rating, listing: listingStats };
+  }
+
+  async getMyRating(userId: string, listingId: string) {
+    await this.findById(listingId);
+    const rating = await this.ratingModel.findOne({
+      user: userId,
+      listing: listingId,
+    });
+    if (!rating) {
+      throw new NotFoundException('You have not rated this listing');
+    }
+    return rating;
+  }
+
+  async listRatings(listingId: string) {
+    await this.findById(listingId);
+    return this.ratingModel
+      .find({ listing: listingId })
+      .populate('user', 'firstName lastName avatarUrl')
+      .sort({ updatedAt: -1 });
+  }
+
+  async deleteMyRating(userId: string, listingId: string) {
+    const result = await this.ratingModel.findOneAndDelete({
+      user: userId,
+      listing: listingId,
+    });
+    if (!result) {
+      throw new NotFoundException('Rating not found');
+    }
+    const listingStats = await this.recalculateListingRating(listingId);
+    return { message: 'Rating removed', listing: listingStats };
+  }
+
+  private async recalculateListingRating(listingId: string) {
+    const [stats] = await this.ratingModel.aggregate<{
+      avg: number;
+      count: number;
+    }>([
+      { $match: { listing: new Types.ObjectId(listingId) } },
+      {
+        $group: {
+          _id: null,
+          avg: { $avg: '$stars' },
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const ratingAvg = stats ? roundRating(stats.avg) : 0;
+    const ratingCount = stats?.count ?? 0;
+
+    const listing = await this.listingModel.findByIdAndUpdate(
+      listingId,
+      { ratingAvg, ratingCount },
+      { new: true },
+    );
+    if (!listing) {
+      throw new NotFoundException('Listing not found');
+    }
+    return {
+      _id: listing._id,
+      ratingAvg: listing.ratingAvg,
+      ratingCount: listing.ratingCount,
+    };
+  }
+
   async search(query: SearchListingsDto) {
     const {
       q,
       propertyType,
       purpose,
       category,
+      spaceKind,
+      paymentFrequency,
       city,
       state,
       lga,
@@ -205,8 +359,21 @@ export class ListingsService {
       maxPrice,
       bedrooms,
       bathrooms,
+      minAreaSqm,
+      maxAreaSqm,
+      minAreaSqft,
+      maxAreaSqft,
+      minYearBuilt,
+      maxYearBuilt,
+      parking,
+      amenities,
+      utilities,
+      lat,
+      lng,
+      radiusKm,
       status,
       verificationStatus,
+      sortBy,
       page = 1,
       limit = 20,
     } = query;
@@ -219,11 +386,30 @@ export class ListingsService {
     if (propertyType) filter.propertyType = propertyType;
     if (purpose) filter.purpose = purpose;
     if (category) filter.category = category;
+    if (spaceKind) filter.spaceKind = spaceKind;
+    if (paymentFrequency) filter.paymentFrequency = paymentFrequency;
     if (city) filter['location.city'] = new RegExp(city, 'i');
     if (state) filter['location.state'] = new RegExp(state, 'i');
     if (lga) filter['location.lga'] = new RegExp(lga, 'i');
     if (bedrooms !== undefined) filter.bedrooms = { $gte: bedrooms };
     if (bathrooms !== undefined) filter.bathrooms = { $gte: bathrooms };
+    if (parking) filter.parking = new RegExp(parking, 'i');
+    if (amenities?.length) filter.amenities = { $all: amenities };
+    if (utilities?.length) filter.utilities = { $all: utilities };
+
+    const price = rangeFilter(minPrice, maxPrice);
+    if (price) filter.price = price;
+    const areaSqm = rangeFilter(minAreaSqm, maxAreaSqm);
+    if (areaSqm) filter.areaSqm = areaSqm;
+    const areaSqft = rangeFilter(minAreaSqft, maxAreaSqft);
+    if (areaSqft) filter.areaSqft = areaSqft;
+    const yearBuilt = rangeFilter(minYearBuilt, maxYearBuilt);
+    if (yearBuilt) filter.yearBuilt = yearBuilt;
+
+    if (lat !== undefined && lng !== undefined && radiusKm !== undefined) {
+      Object.assign(filter, geoBoundingBox(lat, lng, radiusKm));
+    }
+
     if (status) {
       filter.status = status;
     } else {
@@ -232,18 +418,13 @@ export class ListingsService {
     if (verificationStatus) {
       filter.verificationStatus = verificationStatus;
     }
-    if (minPrice !== undefined || maxPrice !== undefined) {
-      const price: Record<string, number> = {};
-      if (minPrice !== undefined) price.$gte = minPrice;
-      if (maxPrice !== undefined) price.$lte = maxPrice;
-      filter.price = price;
-    }
 
     const skip = (page - 1) * limit;
+    const sort = sortForSearch(q, sortBy);
     const [items, total] = await Promise.all([
       this.listingModel
         .find(filter)
-        .sort(q ? { score: { $meta: 'textScore' } } : { createdAt: -1 })
+        .sort(sort)
         .skip(skip)
         .limit(limit)
         .populate('owner', 'firstName lastName kycStatus avatarUrl')

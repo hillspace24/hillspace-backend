@@ -176,25 +176,126 @@
         {
           "name": "Search Listings",
           "request": {
+            "description": "Home/Explore search.\n\nHome chips:\n- All → omit `purpose` (no purpose=all)\n- Rent → purpose=rent\n- Buy → purpose=sale\n- My Listings → use \"My Listings\" request instead\n\nExplore chips → category=2_bedroom|3_bedroom|land|self_con\nFilter modal → minPrice/maxPrice, amenities, lat+lng+radiusKm, sortBy, etc.",
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/listings?q=lekki&city=Lagos&purpose=sale&minPrice=1000000&maxPrice=100000000&page=1&limit=20",
+              "raw": "{{baseUrl}}/listings?q=lekki&city=Lagos&purpose=sale&category=3_bedroom&minPrice=1000000&maxPrice=100000000&page=1&limit=20",
               "host": ["{{baseUrl}}"],
               "path": ["listings"],
               "query": [
                 { "key": "q", "value": "lekki" },
                 { "key": "city", "value": "Lagos" },
-                { "key": "purpose", "value": "sale" },
+                { "key": "state", "value": "Lagos", "disabled": true },
+                { "key": "lga", "value": "Eti-Osa", "disabled": true },
+                { "key": "purpose", "value": "sale", "description": "All → omit this param. Rent → rent. Buy → sale (not buy)." },
+                { "key": "category", "value": "3_bedroom", "description": "Explore chips: 2_bedroom | 3_bedroom | land | self_con. Prefer over bedrooms." },
                 { "key": "propertyType", "value": "duplex", "disabled": true },
+                { "key": "spaceKind", "value": "single_unit", "disabled": true },
+                { "key": "paymentFrequency", "value": "yearly", "disabled": true },
                 { "key": "minPrice", "value": "1000000" },
                 { "key": "maxPrice", "value": "100000000" },
                 { "key": "bedrooms", "value": "3", "disabled": true },
+                { "key": "bathrooms", "value": "2", "disabled": true },
+                { "key": "minAreaSqm", "value": "50", "disabled": true },
+                { "key": "maxAreaSqm", "value": "500", "disabled": true },
+                { "key": "minAreaSqft", "value": "500", "disabled": true },
+                { "key": "maxAreaSqft", "value": "5000", "disabled": true },
+                { "key": "minYearBuilt", "value": "2000", "disabled": true },
+                { "key": "maxYearBuilt", "value": "2024", "disabled": true },
+                { "key": "parking", "value": "covered", "disabled": true },
+                { "key": "amenities", "value": "parking,security", "disabled": true },
+                { "key": "utilities", "value": "water,electricity", "disabled": true },
+                { "key": "lat", "value": "4.8156", "disabled": true },
+                { "key": "lng", "value": "7.0498", "disabled": true },
+                { "key": "radiusKm", "value": "5", "disabled": true },
+                { "key": "sortBy", "value": "newest", "disabled": true, "description": "newest | price_asc | price_desc | rating" },
                 { "key": "page", "value": "1" },
                 { "key": "limit", "value": "20" }
               ]
             }
+          }
+        },
+        {
+          "name": "My Listings",
+          "request": {
+            "description": "Home My Listings chip. JWT required (seller/agent/admin). Not a purpose filter on Search Listings.",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/listings/mine",
+              "host": ["{{baseUrl}}"],
+              "path": ["listings", "mine"],
+              "query": [
+                { "key": "status", "value": "active", "disabled": true, "description": "Optional: draft | active | ..." }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Favorites",
+          "request": {
+            "description": "Favorite tab — Twitter-bookmark style saved listings. Listing includes ratingAvg (0–5) and ratingCount for star UI.",
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/listings/favorites"
+          }
+        },
+        {
+          "name": "Add Favorite",
+          "request": {
+            "description": "Bookmark a listing. 409 if already favorited.",
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}/favorite"
+          }
+        },
+        {
+          "name": "Remove Favorite",
+          "request": {
+            "description": "Unbookmark a listing.",
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}/favorite"
+          }
+        },
+        {
+          "name": "Rate Listing",
+          "request": {
+            "description": "Upsert a 1–5 star rating. Recalculates listing ratingAvg (one decimal, e.g. 4.5) and ratingCount. Cannot rate own listing.",
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stars\": 5,\n  \"comment\": \"Excellent property\"\n}"
+            },
+            "url": "{{baseUrl}}/listings/{{listingId}}/rating"
+          }
+        },
+        {
+          "name": "Get My Rating",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}/rating/me"
+          }
+        },
+        {
+          "name": "List Listing Ratings",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}/ratings"
+          }
+        },
+        {
+          "name": "Delete My Rating",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/listings/{{listingId}}/rating"
           }
         },
         {

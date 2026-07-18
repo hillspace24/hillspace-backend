@@ -110,6 +110,25 @@
       "UpdateListingDto": {
         "allOf": [{ "$ref": "#/components/schemas/CreateListingDto" }]
       },
+      "RateListingDto": {
+        "type": "object",
+        "required": ["stars"],
+        "properties": {
+          "stars": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 4,
+            "description": "Star rating from 1 to 5 (inclusive). Listing cards show ratingAvg rounded to one decimal (e.g. 4.5)."
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 1000,
+            "example": "Great location and solid build quality",
+            "description": "Optional short review text"
+          }
+        }
+      },
       "CreateEscrowDto": {
         "type": "object",
         "required": ["listingId", "amount"],
@@ -299,12 +318,19 @@
     "/api/listings": {
       "get": {
         "tags": ["Listings"],
-        "summary": "Search and filter listings",
+        "summary": "Search and filter listings (Home / Explore)",
+        "description": "Public listing search used by Home chips, Explore categories, search bar, Nearby, and the filter modal.\n\n### Home — My Spaces chips\n- **All** → call this endpoint and **omit** `purpose` (there is no `purpose=all` value)\n- **Rent** → `purpose=rent`\n- **Buy** → `purpose=sale` (API uses `sale`, not `buy`)\n- **My Listings** → use `GET /listings/mine` instead (JWT + seller/agent/admin)\n\n### Explore — category chips\n- **2 Bedroom** → `category=2_bedroom`\n- **3 Bedroom** → `category=3_bedroom`\n- **Land** → `category=land`\n- **Self-Con** → `category=self_con`\n- Prefer `category` for chips; `bedrooms` is a **minimum** (`$gte`), not an exact match\n\n### Search bar & filter icon\n- Search text → `q`\n- Filter modal → combine `minPrice`/`maxPrice`, `bedrooms`, `bathrooms`, `propertyType`, `amenities`, `utilities`, area/year ranges, `parking`, `paymentFrequency`, `spaceKind`, `sortBy`, etc.\n- **Nearby** → pass `lat`, `lng`, and `radiusKm` together\n\nDefaults to `status=active` when `status` is omitted. Response is paginated (`page`, `limit`).",
         "parameters": [
-          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": { "type": "string", "example": "GRA Port Harcourt" },
+            "description": "Full-text search (Explore search bar). Matches title, description, and location text."
+          },
           {
             "name": "propertyType",
             "in": "query",
+            "description": "Filter modal — property type (apartment, house, land, duplex, etc.).",
             "schema": {
               "type": "string",
               "enum": ["apartment", "house", "land", "commercial", "duplex", "bungalow"]
@@ -313,16 +339,192 @@
           {
             "name": "purpose",
             "in": "query",
-            "schema": { "type": "string", "enum": ["sale", "rent"] }
+            "description": "Home chips Rent / Buy. **All** → omit this param entirely (no `all` value). **Rent** → `rent`. **Buy** → `sale` (not `buy`).",
+            "schema": { "type": "string", "enum": ["sale", "rent"], "example": "sale" }
           },
-          { "name": "city", "in": "query", "schema": { "type": "string" } },
-          { "name": "state", "in": "query", "schema": { "type": "string" } },
-          { "name": "minPrice", "in": "query", "schema": { "type": "number" } },
-          { "name": "maxPrice", "in": "query", "schema": { "type": "number" } },
-          { "name": "bedrooms", "in": "query", "schema": { "type": "number" } },
-          { "name": "bathrooms", "in": "query", "schema": { "type": "number" } },
-          { "name": "page", "in": "query", "schema": { "type": "number", "default": 1 } },
-          { "name": "limit", "in": "query", "schema": { "type": "number", "default": 20 } }
+          {
+            "name": "category",
+            "in": "query",
+            "description": "Explore category chips. `2_bedroom` | `3_bedroom` | `land` | `self_con` (plus `other`). Prefer this over `bedrooms` for chip filters.",
+            "schema": {
+              "type": "string",
+              "enum": ["2_bedroom", "3_bedroom", "land", "self_con", "other"],
+              "example": "2_bedroom"
+            }
+          },
+          {
+            "name": "spaceKind",
+            "in": "query",
+            "description": "Filter modal — single unit vs estate.",
+            "schema": { "type": "string", "enum": ["single_unit", "estate"] }
+          },
+          {
+            "name": "paymentFrequency",
+            "in": "query",
+            "description": "Filter modal — rent/sale payment cadence (monthly, yearly, etc.).",
+            "schema": {
+              "type": "string",
+              "enum": ["monthly", "yearly", "one_time", "weekly", "daily"]
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "description": "Location filter (case-insensitive). Often paired with Explore header location.",
+            "schema": { "type": "string", "example": "Port Harcourt" }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "description": "Location filter (case-insensitive).",
+            "schema": { "type": "string", "example": "Rivers" }
+          },
+          {
+            "name": "lga",
+            "in": "query",
+            "description": "Location filter — LGA (case-insensitive).",
+            "schema": { "type": "string", "example": "Obio-Akpor" }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "description": "Filter modal — minimum price (inclusive).",
+            "schema": { "type": "number", "example": 1000000 }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "description": "Filter modal — maximum price (inclusive).",
+            "schema": { "type": "number", "example": 100000000 }
+          },
+          {
+            "name": "bedrooms",
+            "in": "query",
+            "description": "Minimum bedrooms (`>=`). For exact Explore chips prefer `category=2_bedroom` / `3_bedroom`.",
+            "schema": { "type": "number", "example": 3 }
+          },
+          {
+            "name": "bathrooms",
+            "in": "query",
+            "description": "Minimum bathrooms (`>=`).",
+            "schema": { "type": "number", "example": 2 }
+          },
+          {
+            "name": "minAreaSqm",
+            "in": "query",
+            "description": "Filter modal — minimum area in sqm (inclusive).",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "maxAreaSqm",
+            "in": "query",
+            "description": "Filter modal — maximum area in sqm (inclusive).",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "minAreaSqft",
+            "in": "query",
+            "description": "Filter modal — minimum area in sqft (inclusive).",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "maxAreaSqft",
+            "in": "query",
+            "description": "Filter modal — maximum area in sqft (inclusive).",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "minYearBuilt",
+            "in": "query",
+            "description": "Filter modal — minimum year built (inclusive).",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "maxYearBuilt",
+            "in": "query",
+            "description": "Filter modal — maximum year built (inclusive).",
+            "schema": { "type": "number" }
+          },
+          {
+            "name": "parking",
+            "in": "query",
+            "description": "Filter modal — case-insensitive substring match on parking.",
+            "schema": { "type": "string", "example": "covered" }
+          },
+          {
+            "name": "amenities",
+            "in": "query",
+            "description": "Filter modal — listing must include **all** listed amenities. Pass as repeated query keys or comma-separated.",
+            "schema": { "type": "array", "items": { "type": "string" }, "example": ["parking", "security"] },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "utilities",
+            "in": "query",
+            "description": "Filter modal — listing must include **all** listed utilities. Pass as repeated query keys or comma-separated.",
+            "schema": { "type": "array", "items": { "type": "string" }, "example": ["water", "electricity"] },
+            "style": "form",
+            "explode": true
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "description": "Nearby / geo filter — center latitude. Must be sent together with `lng` and `radiusKm`.",
+            "schema": { "type": "number", "example": 4.8156 }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "description": "Nearby / geo filter — center longitude. Must be sent together with `lat` and `radiusKm`.",
+            "schema": { "type": "number", "example": 7.0498 }
+          },
+          {
+            "name": "radiusKm",
+            "in": "query",
+            "description": "Nearby / geo filter — radius in km around lat/lng. Incomplete triples (missing lat, lng, or radiusKm) are ignored.",
+            "schema": { "type": "number", "example": 5 }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "Listing lifecycle status. **Defaults to `active`** when omitted (Explore/Home only show live listings).",
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "active", "under_offer", "sold", "rented", "archived"]
+            }
+          },
+          {
+            "name": "verificationStatus",
+            "in": "query",
+            "description": "Optional verification filter (e.g. show only approved listings).",
+            "schema": {
+              "type": "string",
+              "enum": ["unverified", "pending", "approved", "rejected"]
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "description": "Sort order. When `q` is set, results are ranked by text score instead. Values: `newest`, `price_asc`, `price_desc`, `rating`.",
+            "schema": {
+              "type": "string",
+              "enum": ["newest", "price_asc", "price_desc", "rating"],
+              "default": "newest"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Page number (1-based).",
+            "schema": { "type": "number", "default": 1, "example": 1 }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Page size.",
+            "schema": { "type": "number", "default": 20, "example": 20 }
+          }
         ],
         "responses": {
           "200": { "description": "Paginated listings" }
@@ -374,6 +576,29 @@
         },
         "responses": {
           "201": { "description": "Listing created" }
+        }
+      }
+    },
+    "/api/listings/mine": {
+      "get": {
+        "tags": ["Listings"],
+        "summary": "My listings (Home — My Listings chip)",
+        "description": "Returns listings owned by the authenticated seller/agent (or all for admin).\n\nThis is the backend for the Home **My Listings** chip — not a `purpose` filter on `GET /listings`.\nOptional `status` query filters drafts vs published, etc.",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "Optional lifecycle filter (e.g. `draft` vs `active`).",
+            "schema": {
+              "type": "string",
+              "enum": ["draft", "active", "under_offer", "sold", "rented", "archived"]
+            }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Array of the current user's listings" }
         }
       }
     },
@@ -458,6 +683,111 @@
         ],
         "responses": {
           "201": { "description": "Published" }
+        }
+      }
+    },
+    "/api/listings/favorites": {
+      "get": {
+        "tags": ["Listings"],
+        "summary": "List my favorites (Favorite tab)",
+        "description": "Twitter-bookmark style saved listings for the Favorite bottom-nav tab.\nEach item includes the populated `listing` (with `ratingAvg` / `ratingCount` for the star UI).\nAdd with `POST /listings/:id/favorite`, remove with `DELETE /listings/:id/favorite`.",
+        "security": [{ "access-token": [] }],
+        "responses": {
+          "200": {
+            "description": "Array of favorite records with populated listing (includes ratingAvg 0–5 and ratingCount)"
+          }
+        }
+      }
+    },
+    "/api/listings/{id}/favorite": {
+      "post": {
+        "tags": ["Listings"],
+        "summary": "Add listing to favorites",
+        "description": "Bookmark a listing (Favorite tab). Returns 409 if already favorited — use DELETE to unfavorite.",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "201": { "description": "Favorite created" },
+          "409": { "description": "Already favorited" }
+        }
+      },
+      "delete": {
+        "tags": ["Listings"],
+        "summary": "Remove listing from favorites",
+        "description": "Remove a bookmark from the Favorite tab.",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Removed from favorites" },
+          "404": { "description": "Favorite not found" }
+        }
+      }
+    },
+    "/api/listings/{id}/ratings": {
+      "get": {
+        "tags": ["Listings"],
+        "summary": "List ratings for a listing",
+        "description": "Public list of user star ratings (1–5). Listing cards use aggregate `ratingAvg` (0–5, one decimal, e.g. 4.5) and `ratingCount`.",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Array of ratings with user preview" }
+        }
+      }
+    },
+    "/api/listings/{id}/rating/me": {
+      "get": {
+        "tags": ["Listings"],
+        "summary": "Get my rating for a listing",
+        "description": "Returns the authenticated user's rating if they have one.",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Current user's rating" },
+          "404": { "description": "User has not rated this listing" }
+        }
+      }
+    },
+    "/api/listings/{id}/rating": {
+      "post": {
+        "tags": ["Listings"],
+        "summary": "Rate a listing (1–5 stars)",
+        "description": "Create or update the authenticated user's star rating for a listing.\nStars are integers **1–5**. Recalculates listing `ratingAvg` (one decimal, e.g. 4.5) and `ratingCount`.\nOwners/agents cannot rate their own listings. Upsert: POST again to change your stars.",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RateListingDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Rating upserted; listing aggregates updated" },
+          "400": { "description": "Cannot rate own listing / invalid stars" }
+        }
+      },
+      "delete": {
+        "tags": ["Listings"],
+        "summary": "Remove my rating",
+        "description": "Deletes the authenticated user's rating and recalculates listing `ratingAvg` / `ratingCount`.",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Rating removed; listing aggregates updated" },
+          "404": { "description": "Rating not found" }
         }
       }
     },

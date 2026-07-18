@@ -31,6 +31,7 @@ import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateListingDto } from './dto/create-listing.dto';
+import { RateListingDto } from './dto/rate-listing.dto';
 import { SearchListingsDto } from './dto/search-listings.dto';
 import { UpdateListingDto } from './dto/update-listing.dto';
 import { ListingsService } from './listings.service';
@@ -49,7 +50,33 @@ export class ListingsController {
   constructor(private readonly listingsService: ListingsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Search and filter listings (Explore)' })
+  @ApiOperation({
+    summary: 'Search and filter listings (Home / Explore)',
+    description: [
+      'Public listing search used by Home chips, Explore categories, search bar, Nearby, and the filter modal.',
+      '',
+      '### Home — My Spaces chips',
+      '- **All** → call this endpoint and **omit** `purpose` (there is no `purpose=all` value)',
+      '- **Rent** → `purpose=rent`',
+      '- **Buy** → `purpose=sale` (API uses `sale`, not `buy`)',
+      '- **My Listings** → use `GET /listings/mine` instead (JWT + seller/agent/admin)',
+      '',
+      '### Explore — category chips',
+      '- **2 Bedroom** → `category=2_bedroom`',
+      '- **3 Bedroom** → `category=3_bedroom`',
+      '- **Land** → `category=land`',
+      '- **Self-Con** → `category=self_con`',
+      '- Prefer `category` for chips; `bedrooms` is a **minimum** (`$gte`), not an exact match',
+      '',
+      '### Search bar & filter icon',
+      '- Search text → `q`',
+      '- Filter modal → combine `minPrice`/`maxPrice`, `bedrooms`, `bathrooms`, `propertyType`,',
+      '  `amenities`, `utilities`, area/year ranges, `parking`, `paymentFrequency`, `spaceKind`, `sortBy`, etc.',
+      '- **Nearby** → pass `lat`, `lng`, and `radiusKm` together',
+      '',
+      'Defaults to `status=active` when `status` is omitted. Response is paginated (`page`, `limit`).',
+    ].join('\n'),
+  })
   search(@Query() query: SearchListingsDto) {
     return this.listingsService.search(query);
   }
@@ -58,7 +85,14 @@ export class ListingsController {
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(Role.SELLER, Role.AGENT, Role.ADMIN)
-  @ApiOperation({ summary: 'My listings (Published / Drafts)' })
+  @ApiOperation({
+    summary: 'My listings (Home — My Listings chip)',
+    description: [
+      'Returns listings owned by the authenticated seller/agent (or all for admin).',
+      'This is the backend for the Home **My Listings** chip — not a `purpose` filter on `GET /listings`.',
+      'Optional `status` query filters drafts vs published, etc.',
+    ].join('\n'),
+  })
   @ApiQuery({ name: 'status', required: false, enum: ListingStatus })
   mine(
     @CurrentUser('sub') userId: string,
@@ -70,7 +104,14 @@ export class ListingsController {
   @Get('favorites')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'List my favorite listings' })
+  @ApiOperation({
+    summary: 'List my favorites (Favorite tab)',
+    description: [
+      'Twitter-bookmark style saved listings for the Favorite bottom-nav tab.',
+      'Each item includes the populated `listing` (with `ratingAvg` / `ratingCount` for the star UI).',
+      'Add with `POST /listings/:id/favorite`, remove with `DELETE /listings/:id/favorite`.',
+    ].join('\n'),
+  })
   favorites(@CurrentUser('sub') userId: string) {
     return this.listingsService.myFavorites(userId);
   }
@@ -79,6 +120,30 @@ export class ListingsController {
   @ApiOperation({ summary: 'Get listing by id' })
   findOne(@Param('id') id: string) {
     return this.listingsService.findById(id);
+  }
+
+  @Get(':id/ratings')
+  @ApiOperation({
+    summary: 'List ratings for a listing',
+    description:
+      'Public list of user star ratings (1–5). Listing cards use aggregate `ratingAvg` (0–5, one decimal) and `ratingCount`.',
+  })
+  listRatings(@Param('id') id: string) {
+    return this.listingsService.listRatings(id);
+  }
+
+  @Get(':id/rating/me')
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Get my rating for a listing',
+    description: 'Returns the authenticated user\'s rating if they have one.',
+  })
+  getMyRating(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.listingsService.getMyRating(userId, id);
   }
 
   @Post()
@@ -286,7 +351,11 @@ export class ListingsController {
   @Post(':id/favorite')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Add listing to favorites' })
+  @ApiOperation({
+    summary: 'Add listing to favorites',
+    description:
+      'Bookmark a listing (Favorite tab). Idempotent conflict if already saved — use DELETE to unfavorite.',
+  })
   addFavorite(
     @Param('id') id: string,
     @CurrentUser('sub') userId: string,
@@ -297,11 +366,48 @@ export class ListingsController {
   @Delete(':id/favorite')
   @ApiBearerAuth('access-token')
   @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Remove listing from favorites' })
+  @ApiOperation({
+    summary: 'Remove listing from favorites',
+    description: 'Remove a bookmark from the Favorite tab.',
+  })
   removeFavorite(
     @Param('id') id: string,
     @CurrentUser('sub') userId: string,
   ) {
     return this.listingsService.removeFavorite(userId, id);
+  }
+
+  @Post(':id/rating')
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Rate a listing (1–5 stars)',
+    description: [
+      'Create or update the authenticated user\'s star rating for a listing.',
+      'Stars are integers **1–5**. Recalculates listing `ratingAvg` (one decimal, e.g. 4.5) and `ratingCount`.',
+      'Owners/agents cannot rate their own listings. Upsert: POST again to change your stars.',
+    ].join('\n'),
+  })
+  rateListing(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+    @Body() dto: RateListingDto,
+  ) {
+    return this.listingsService.rateListing(userId, id, dto);
+  }
+
+  @Delete(':id/rating')
+  @ApiBearerAuth('access-token')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({
+    summary: 'Remove my rating',
+    description:
+      'Deletes the authenticated user\'s rating and recalculates listing `ratingAvg` / `ratingCount`.',
+  })
+  deleteMyRating(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+  ) {
+    return this.listingsService.deleteMyRating(userId, id);
   }
 }

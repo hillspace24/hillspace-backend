@@ -41,3 +41,10 @@ export enum ListingCategory {
   SELF_CON = 'self_con',
   OTHER = 'other',
 }
+
+export enum ListingSortBy {
+  NEWEST = 'newest',
+  PRICE_ASC = 'price_asc',
+  PRICE_DESC = 'price_desc',
+  RATING = 'rating',
+}
