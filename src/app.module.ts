@@ -12,6 +12,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { UsersModule } from './users/users.module';
 import { VerificationModule } from './verification/verification.module';
+import { WaitlistModule } from './waitlist/waitlist.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { VerificationModule } from './verification/verification.module';
     BookingsModule,
     MessagesModule,
     ReportsModule,
+    WaitlistModule,
   ],
 })
 export class AppModule {}

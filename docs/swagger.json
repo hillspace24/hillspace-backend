@@ -16,7 +16,8 @@
     { "name": "Users" },
     { "name": "Listings" },
     { "name": "Verification" },
-    { "name": "Escrow" }
+    { "name": "Escrow" },
+    { "name": "Waitlist" }
   ],
   "components": {
     "securitySchemes": {
@@ -150,6 +151,24 @@
           "status": { "type": "string", "enum": ["approved", "rejected"] },
           "reviewNotes": { "type": "string" }
         }
+      },
+      "CreateWaitlistDto": {
+        "type": "object",
+        "required": ["fullName", "email", "city", "persona"],
+        "properties": {
+          "fullName": { "type": "string", "example": "Emeka Okafor" },
+          "email": { "type": "string", "format": "email", "example": "emeka@email.com" },
+          "phone": { "type": "string", "example": "+234 800 000 0000" },
+          "city": { "type": "string", "example": "Lagos" },
+          "persona": {
+            "type": "string",
+            "enum": ["renter", "buyer", "agent", "landlord", "developer", "other"],
+            "example": "renter"
+          }
+        }
+      },
+      "UpdateWaitlistDto": {
+        "allOf": [{ "$ref": "#/components/schemas/CreateWaitlistDto" }]
       },
       "AuthTokensResponse": {
         "type": "object",
@@ -676,6 +695,98 @@
         },
         "responses": {
           "201": { "description": "Cancelled" }
+        }
+      }
+    },
+    "/api/waitlist": {
+      "post": {
+        "tags": ["Waitlist"],
+        "summary": "Join the waitlist (public)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/CreateWaitlistDto" }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Joined waitlist" },
+          "409": { "description": "Email already on waitlist" }
+        }
+      },
+      "get": {
+        "tags": ["Waitlist"],
+        "summary": "List waitlist entries (admin)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "q", "in": "query", "schema": { "type": "string" } },
+          { "name": "city", "in": "query", "schema": { "type": "string" } },
+          {
+            "name": "persona",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["renter", "buyer", "agent", "landlord", "developer", "other"]
+            }
+          },
+          { "name": "page", "in": "query", "schema": { "type": "number", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "number", "default": 20 } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated waitlist" }
+        }
+      }
+    },
+    "/api/waitlist/count": {
+      "get": {
+        "tags": ["Waitlist"],
+        "summary": "Public waitlist signup count",
+        "responses": {
+          "200": { "description": "{ total: number }" }
+        }
+      }
+    },
+    "/api/waitlist/{id}": {
+      "get": {
+        "tags": ["Waitlist"],
+        "summary": "Get waitlist entry by id (admin)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Waitlist entry" }
+        }
+      },
+      "patch": {
+        "tags": ["Waitlist"],
+        "summary": "Update waitlist entry (admin)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/UpdateWaitlistDto" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Waitlist"],
+        "summary": "Delete waitlist entry (admin)",
+        "security": [{ "access-token": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Deleted" }
         }
       }
     }

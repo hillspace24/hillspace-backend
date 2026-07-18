@@ -11,7 +11,8 @@
     { "key": "refreshToken", "value": "" },
     { "key": "listingId", "value": "" },
     { "key": "escrowId", "value": "" },
-    { "key": "verificationId", "value": "" }
+    { "key": "verificationId", "value": "" },
+    { "key": "waitlistId", "value": "" }
   ],
   "auth": {
     "type": "bearer",
@@ -541,6 +542,100 @@
               "raw": "{\n  \"note\": \"Buyer cancelled before funding\"\n}"
             },
             "url": "{{baseUrl}}/escrow/{{escrowId}}/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Waitlist",
+      "item": [
+        {
+          "name": "Join Waitlist",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201 || pm.response.code === 200) {",
+                  "  const data = pm.response.json();",
+                  "  if (data._id) pm.collectionVariables.set('waitlistId', data._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"Emeka Okafor\",\n  \"email\": \"emeka@email.com\",\n  \"phone\": \"+234 800 000 0000\",\n  \"city\": \"Lagos\",\n  \"persona\": \"renter\"\n}"
+            },
+            "url": "{{baseUrl}}/waitlist",
+            "description": "Public. persona: renter | buyer | agent | landlord | developer | other"
+          }
+        },
+        {
+          "name": "Waitlist Count",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/waitlist/count",
+            "description": "Public signup count for landing social proof"
+          }
+        },
+        {
+          "name": "List Waitlist",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/waitlist?page=1&limit=20&city=Lagos&persona=renter",
+              "host": ["{{baseUrl}}"],
+              "path": ["waitlist"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "city", "value": "Lagos" },
+                { "key": "persona", "value": "renter" },
+                { "key": "q", "value": "", "disabled": true }
+              ]
+            },
+            "description": "Admin only"
+          }
+        },
+        {
+          "name": "Get Waitlist Entry",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/waitlist/{{waitlistId}}",
+            "description": "Admin only"
+          }
+        },
+        {
+          "name": "Update Waitlist Entry",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Abuja\",\n  \"persona\": \"buyer\"\n}"
+            },
+            "url": "{{baseUrl}}/waitlist/{{waitlistId}}",
+            "description": "Admin only"
+          }
+        },
+        {
+          "name": "Delete Waitlist Entry",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": "{{baseUrl}}/waitlist/{{waitlistId}}",
+            "description": "Admin only"
           }
         }
       ]
