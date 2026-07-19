@@ -29,14 +29,14 @@ export class NotificationsService {
 
   async list(userId: string) {
     return this.notificationModel
-      .find({ user: userId })
+      .find({ user: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 })
       .limit(100);
   }
 
   async markRead(userId: string, id: string) {
     const n = await this.notificationModel.findOneAndUpdate(
-      { _id: id, user: userId },
+      { _id: id, user: new Types.ObjectId(userId) },
       { read: true },
       { new: true },
     );
@@ -46,7 +46,7 @@ export class NotificationsService {
 
   async markAllRead(userId: string) {
     await this.notificationModel.updateMany(
-      { user: userId, read: false },
+      { user: new Types.ObjectId(userId), read: false },
       { read: true },
     );
     return { message: 'All notifications marked as read' };

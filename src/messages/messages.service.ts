@@ -27,7 +27,7 @@ export class MessagesService {
 
   async listConversations(userId: string) {
     return this.conversationModel
-      .find({ participants: userId })
+      .find({ participants: new Types.ObjectId(userId) })
       .sort({ lastMessageAt: -1 })
       .populate('participants', 'firstName lastName avatarUrl')
       .populate('listing', 'title price images location');
@@ -38,19 +38,18 @@ export class MessagesService {
       throw new BadRequestException('Cannot start a conversation with yourself');
     }
 
+    const me = new Types.ObjectId(userId);
+    const other = new Types.ObjectId(dto.participantId);
     const existing = await this.conversationModel.findOne({
-      participants: { $all: [userId, dto.participantId], $size: 2 },
+      participants: { $all: [me, other], $size: 2 },
       ...(dto.listingId
-        ? { listing: dto.listingId }
+        ? { listing: new Types.ObjectId(dto.listingId) }
         : { listing: { $exists: false } }),
     });
     if (existing) return existing;
 
     return this.conversationModel.create({
-      participants: [
-        new Types.ObjectId(userId),
-        new Types.ObjectId(dto.participantId),
-      ],
+      participants: [me, other],
       listing: dto.listingId
         ? new Types.ObjectId(dto.listingId)
         : undefined,
@@ -61,7 +60,7 @@ export class MessagesService {
   async getConversation(userId: string, conversationId: string) {
     const conversation = await this.ensureParticipant(userId, conversationId);
     const messages = await this.messageModel
-      .find({ conversation: conversationId })
+      .find({ conversation: new Types.ObjectId(conversationId) })
       .sort({ createdAt: 1 })
       .populate('sender', 'firstName lastName avatarUrl');
     return { conversation, messages };
@@ -109,8 +108,8 @@ export class MessagesService {
     await this.ensureParticipant(userId, conversationId);
     await this.messageModel.updateMany(
       {
-        conversation: conversationId,
-        readBy: { $ne: userId },
+        conversation: new Types.ObjectId(conversationId),
+        readBy: { $ne: new Types.ObjectId(userId) },
       },
       { $addToSet: { readBy: new Types.ObjectId(userId) } },
     );

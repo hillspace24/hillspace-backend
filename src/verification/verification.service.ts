@@ -116,7 +116,7 @@ export class VerificationService {
 
   async myRequests(userId: string) {
     return this.verificationModel
-      .find({ requester: userId })
+      .find({ requester: new Types.ObjectId(userId) })
       .sort({ createdAt: -1 });
   }
 

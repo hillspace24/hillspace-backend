@@ -28,15 +28,17 @@ export class BookingsService {
 
   async create(buyerId: string, dto: CreateBookingDto): Promise<BookingDocument> {
     const listing = await this.listingsService.findById(dto.listingId);
-    if (listing.owner.toString() === buyerId) {
+    const ownerId = this.refId(listing.owner);
+    if (ownerId === buyerId) {
       throw new BadRequestException('Cannot book inspection on your own listing');
     }
 
+    const agentId = this.refId(listing.agent ?? listing.owner);
     const fee = dto.fee ?? listing.inspectionFee ?? 0;
     const booking = await this.bookingModel.create({
       listing: listing._id,
       buyer: new Types.ObjectId(buyerId),
-      agent: listing.agent ?? listing.owner,
+      agent: new Types.ObjectId(agentId),
       date: new Date(dto.date),
       time: dto.time,
       inspectionType: dto.inspectionType,
@@ -46,10 +48,9 @@ export class BookingsService {
       paymentStatus: BookingPaymentStatus.UNPAID,
     });
 
-    const notifyUserId = (listing.agent ?? listing.owner).toString();
     if (this.notificationsService) {
       await this.notificationsService.create({
-        userId: notifyUserId,
+        userId: agentId,
         title: 'New inspection booking',
         body: `Someone booked an inspection for ${listing.title}`,
         type: 'booking_created',
@@ -61,9 +62,10 @@ export class BookingsService {
   }
 
   async myBookings(userId: string) {
+    const user = new Types.ObjectId(userId);
     return this.bookingModel
       .find({
-        $or: [{ buyer: userId }, { agent: userId }],
+        $or: [{ buyer: user }, { agent: user }],
       })
       .sort({ date: -1 })
       .populate('listing', 'title price location images currency')
@@ -104,7 +106,7 @@ export class BookingsService {
 
     if (this.notificationsService) {
       await this.notificationsService.create({
-        userId: booking.buyer.toString(),
+        userId: this.refId(booking.buyer),
         title: 'Inspection confirmed',
         body: 'Your property inspection has been confirmed.',
         type: 'booking_confirmed',
@@ -124,6 +126,15 @@ export class BookingsService {
     }
     booking.status = BookingStatus.CANCELLED;
     return booking.save();
+  }
+
+  private refId(ref: Types.ObjectId | { _id?: Types.ObjectId } | string | null | undefined): string {
+    if (!ref) return '';
+    if (typeof ref === 'string') return ref;
+    if (typeof ref === 'object' && '_id' in ref && ref._id) {
+      return ref._id.toString();
+    }
+    return ref.toString();
   }
 
   private async getOwnedBooking(
