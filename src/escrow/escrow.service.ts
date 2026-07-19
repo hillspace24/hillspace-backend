@@ -120,8 +120,9 @@ export class EscrowService {
   }
 
   async myDeals(userId: string, status?: EscrowStatus) {
+    const user = new Types.ObjectId(userId);
     const filter: Record<string, unknown> = {
-      $or: [{ buyer: userId }, { seller: userId }],
+      $or: [{ buyer: user }, { seller: user }],
     };
     if (status) filter.status = status;
     return this.escrowModel

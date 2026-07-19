@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument, SchemaTypes, Types } from 'mongoose';
 import { EscrowStatus } from '../common/enums/escrow-status.enum';
 
 export type EscrowDocument = HydratedDocument<Escrow>;
@@ -12,7 +12,7 @@ export class EscrowEvent {
   @Prop()
   note?: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User' })
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'User' })
   by?: Types.ObjectId;
 
   @Prop({ default: () => new Date() })
@@ -30,13 +30,13 @@ export class DisputeEvidence {
 
 @Schema({ timestamps: true })
 export class Escrow {
-  @Prop({ type: Types.ObjectId, ref: 'Listing', required: true, index: true })
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'Listing', required: true, index: true })
   listing: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true, index: true })
   buyer: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
+  @Prop({ type: SchemaTypes.ObjectId, ref: 'User', required: true, index: true })
   seller: Types.ObjectId;
 
   @Prop({ required: true, min: 0 })
