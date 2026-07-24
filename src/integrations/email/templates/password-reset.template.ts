@@ -37,7 +37,7 @@ export function buildPasswordResetEmail(
   };
 
   return {
-    subject: 'HillSpace — Reset your password',
+    subject: 'HillSpace - Reset your password',
     html: mailgen.generate(email),
     text: mailgen.generatePlaintext(email),
   };

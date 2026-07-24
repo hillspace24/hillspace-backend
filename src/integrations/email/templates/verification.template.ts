@@ -63,7 +63,7 @@ export function buildVerificationEmail(
   };
 
   return {
-    subject: 'HillSpace — Verify your email',
+    subject: 'HillSpace - Verify your email',
     html: mailgen.generate(email),
     text: mailgen.generatePlaintext(email),
   };

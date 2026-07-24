@@ -17,7 +17,7 @@ export function buildPasswordResetOtpEmail(name: string, otp: string) {
   };
 
   return {
-    subject: 'HillSpace — Password reset code',
+    subject: 'HillSpace - Password reset code',
     html: mailgen.generate(email),
     text: mailgen.generatePlaintext(email),
   };

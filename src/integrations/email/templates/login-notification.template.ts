@@ -43,7 +43,7 @@ export function buildLoginNotificationEmail(
   };
 
   return {
-    subject: 'HillSpace — New sign-in to your account',
+    subject: 'HillSpace - New sign-in to your account',
     html: mailgen.generate(email),
     text: mailgen.generatePlaintext(email),
   };

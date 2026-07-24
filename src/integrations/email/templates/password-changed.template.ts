@@ -16,7 +16,7 @@ export function buildPasswordChangedEmail(name: string) {
   };
 
   return {
-    subject: 'HillSpace — Your password was changed',
+    subject: 'HillSpace - Your password was changed',
     html: mailgen.generate(email),
     text: mailgen.generatePlaintext(email),
   };

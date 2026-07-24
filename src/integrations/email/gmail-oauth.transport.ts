@@ -39,6 +39,8 @@ export async function sendViaGmailApi(
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
 
   const b64 = (s: string) => Buffer.from(s, 'utf-8').toString('base64');
+  // RFC 2047 — keeps non-ASCII subjects (e.g. em dashes) from becoming mojibake in Gmail
+  const encodedSubject = `=?UTF-8?B?${b64(options.subject)}?=`;
 
   let rawMessage: string;
 
@@ -47,7 +49,7 @@ export async function sendViaGmailApi(
     rawMessage = [
       `From: ${options.from}`,
       `To: ${options.to}`,
-      `Subject: ${options.subject}`,
+      `Subject: ${encodedSubject}`,
       'MIME-Version: 1.0',
       `Content-Type: multipart/alternative; boundary="${boundary}"`,
       '',
@@ -69,7 +71,7 @@ export async function sendViaGmailApi(
     rawMessage = [
       `From: ${options.from}`,
       `To: ${options.to}`,
-      `Subject: ${options.subject}`,
+      `Subject: ${encodedSubject}`,
       'MIME-Version: 1.0',
       'Content-Type: text/plain; charset=utf-8',
       'Content-Transfer-Encoding: base64',
@@ -80,6 +82,6 @@ export async function sendViaGmailApi(
 
   await gmail.users.messages.send({
     userId: 'me',
-    requestBody: { raw: Buffer.from(rawMessage).toString('base64url') },
+    requestBody: { raw: Buffer.from(rawMessage, 'utf-8').toString('base64url') },
   });
 }
