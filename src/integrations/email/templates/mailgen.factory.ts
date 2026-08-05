@@ -30,35 +30,58 @@ export function getMailgen(): Mailgen {
   });
 }
 
-/** Generate HTML/text and harden the logo <img> for common email clients. */
+/**
+ * Shared HTML/text render for every transactional email (waitlist, verify,
+ * password reset, login notice, etc.).
+ */
 export function renderMail(email: Mailgen.Content): {
   html: string;
   text: string;
 } {
   const mailgen = getMailgen();
   const logoUrl = resolveLogoUrl();
-  let html = mailgen.generate(email) as string;
-
-  const logoImg =
-    `<img src="${logoUrl}" alt="HillSpace" width="120" height="48" ` +
-    `style="display:block;width:120px;max-width:120px;height:48px;border:0;outline:none;text-decoration:none;" />`;
-
-  // Mailgen emits a broken/empty alt attribute; replace the product logo img.
-  html = html.replace(/<img\b[^>]*src="[^"]*email-logo[^"]*"[^>]*>/i, logoImg);
-  html = html.replace(
-    /<img\b[^>]*src="[^"]*ar0uptfy[^"]*"[^>]*>/i,
-    logoImg,
-  );
-  // Fallback: first logo-sized img from Mailgen product header
-  if (!html.includes(`src="${logoUrl}"`)) {
-    html = html.replace(
-      /<img\b[^>]*style="[^"]*height:\s*48px[^"]*"[^>]*>/i,
-      logoImg,
-    );
-  }
+  const html = applySharedEmailLayout(mailgen.generate(email) as string, logoUrl);
 
   return {
     html,
     text: mailgen.generatePlaintext(email) as string,
   };
+}
+
+/** Center the product logo in the header for all Mailgen emails / clients. */
+function applySharedEmailLayout(html: string, logoUrl: string): string {
+  const safeLogoUrl = logoUrl.replace(/"/g, '%22');
+  const logoImg =
+    `<img src="${safeLogoUrl}" alt="HillSpace" width="120" height="48" ` +
+    `style="display:inline-block;margin:0 auto;width:120px;max-width:120px;height:48px;border:0;outline:none;text-decoration:none;" />`;
+
+  return html.replace(
+    /<td class="email-masthead"([^>]*)>([\s\S]*?)<\/td>/i,
+    (_match, tdAttrs: string, inner: string) => {
+      let attrs = tdAttrs;
+      if (/\balign=/i.test(attrs)) {
+        attrs = attrs.replace(/\balign="[^"]*"/i, 'align="center"');
+      } else {
+        attrs += ' align="center"';
+      }
+      if (/\bstyle="/i.test(attrs)) {
+        attrs = attrs.replace(/\bstyle="/i, 'style="text-align:center;');
+      } else {
+        attrs += ' style="text-align:center;"';
+      }
+
+      let body = inner.replace(/<img\b[^>]*>/i, logoImg);
+      body = body.replace(
+        /(<a class="email-masthead_name"[^>]*style=")([^"]*)(")/i,
+        '$1$2display:block;text-align:center;$3',
+      );
+
+      return (
+        `<td class="email-masthead"${attrs}>` +
+        `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">` +
+        `<tr><td align="center" style="text-align:center;">${body}</td></tr>` +
+        `</table></td>`
+      );
+    },
+  );
 }
