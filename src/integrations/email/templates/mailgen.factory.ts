@@ -5,6 +5,11 @@ import { getPublicFrontendBaseUrl } from './email-urls';
 const DEFAULT_EMAIL_LOGO_URL =
   'https://res.cloudinary.com/ar0uptfy/image/upload/f_png,w_240,c_fit,q_auto/hillspace/email-logo.png';
 
+const SOCIAL_LINKS = [
+  { label: 'LinkedIn', url: 'https://linkedin.com/company/hillspace/' },
+  { label: 'Twitter', url: 'https://twitter.com/HillSpace_tech' },
+] as const;
+
 function resolveLogoUrl(): string {
   const raw = process.env.EMAIL_LOGO_URL?.trim() || DEFAULT_EMAIL_LOGO_URL;
   // Force https for email clients
@@ -44,8 +49,27 @@ export function renderMail(email: Mailgen.Content): {
 
   return {
     html,
-    text: mailgen.generatePlaintext(email) as string,
+    text: `${mailgen.generatePlaintext(email) as string}${socialLinksText()}`,
   };
+}
+
+function socialLinksHtml(): string {
+  const links = SOCIAL_LINKS.map(
+    (item) =>
+      `<a href="${item.url}" target="_blank" rel="noopener noreferrer" ` +
+      `style="color:#AEAEAE;text-decoration:underline;">${item.label}</a>`,
+  ).join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;');
+
+  return (
+    `<p class="sub center" style="margin-top:12px;margin-bottom:0;line-height:1.5em;` +
+    `font-family:Arial,'Helvetica Neue',Helvetica,sans-serif;color:#AEAEAE;font-size:12px;text-align:center;">` +
+    `Follow us on ${links}</p>`
+  );
+}
+
+function socialLinksText(): string {
+  const lines = SOCIAL_LINKS.map((item) => `${item.label}: ${item.url}`).join('\n');
+  return `\n\nFollow us:\n${lines}\n`;
 }
 
 /** Center the product logo in the header for all Mailgen emails / clients. */
@@ -54,6 +78,11 @@ function applySharedEmailLayout(html: string, logoUrl: string): string {
   const logoImg =
     `<img src="${safeLogoUrl}" alt="HillSpace" width="120" height="48" ` +
     `style="display:inline-block;margin:0 auto;width:120px;max-width:120px;height:48px;border:0;outline:none;text-decoration:none;" />`;
+
+  html = html.replace(
+    /(<table class="email-footer"[\s\S]*?<p class="sub center"[\s\S]*?<\/p>)/i,
+    `$1${socialLinksHtml()}`,
+  );
 
   return html.replace(
     /<td class="email-masthead"([^>]*)>([\s\S]*?)<\/td>/i,
