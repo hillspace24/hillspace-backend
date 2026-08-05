@@ -10,3 +10,7 @@ export {
   buildLoginNotificationEmail,
   type LoginNotificationParams,
 } from './login-notification.template';
+export {
+  buildWaitlistWelcomeEmail,
+  type WaitlistWelcomeParams,
+} from './waitlist-welcome.template';

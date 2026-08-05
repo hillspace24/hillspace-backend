@@ -35,7 +35,6 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
     "cloudinary": "^2.10.0",
-    "googleapis": "^173.0.0",
     "mailgen": "^2.0.34",
     "mongoose": "^9.7.4",
     "multer": "^2.2.0",

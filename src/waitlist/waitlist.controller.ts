@@ -29,7 +29,11 @@ export class WaitlistController {
   constructor(private readonly waitlistService: WaitlistService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Join the waitlist (public)' })
+  @ApiOperation({
+    summary: 'Join the waitlist (public)',
+    description:
+      'Stores the signup and sends a Brevo welcome email. Duplicate emails return 409.',
+  })
   create(@Body() dto: CreateWaitlistDto) {
     return this.waitlistService.create(dto);
   }

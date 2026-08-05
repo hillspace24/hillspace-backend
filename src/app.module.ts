@@ -6,6 +6,7 @@ import { BookingsModule } from './bookings/bookings.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import appConfig from './config/app.config';
 import { EscrowModule } from './escrow/escrow.module';
+import { EmailModule } from './integrations/email/email.module';
 import { ListingsModule } from './listings/listings.module';
 import { MessagesModule } from './messages/messages.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -27,6 +28,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
       }),
     }),
     CloudinaryModule,
+    EmailModule,
     NotificationsModule,
     UsersModule,
     AuthModule,

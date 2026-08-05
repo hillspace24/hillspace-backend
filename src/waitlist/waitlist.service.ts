@@ -1,10 +1,12 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { EmailService } from '../integrations/email/email.service';
 import { CreateWaitlistDto } from './dto/create-waitlist.dto';
 import { QueryWaitlistDto } from './dto/query-waitlist.dto';
 import { UpdateWaitlistDto } from './dto/update-waitlist.dto';
@@ -12,9 +14,12 @@ import { WaitlistDocument, WaitlistEntry } from './waitlist.schema';
 
 @Injectable()
 export class WaitlistService {
+  private readonly logger = new Logger(WaitlistService.name);
+
   constructor(
     @InjectModel(WaitlistEntry.name)
     private readonly waitlistModel: Model<WaitlistEntry>,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(dto: CreateWaitlistDto): Promise<WaitlistDocument> {
@@ -25,13 +30,15 @@ export class WaitlistService {
     }
 
     try {
-      return await this.waitlistModel.create({
+      const entry = await this.waitlistModel.create({
         ...dto,
         email,
         phone: dto.phone?.trim() || undefined,
         city: dto.city.trim(),
         fullName: dto.fullName.trim(),
       });
+      await this.sendJoinEmailBestEffort(entry);
+      return entry;
     } catch (error: unknown) {
       if (
         typeof error === 'object' &&
@@ -43,6 +50,34 @@ export class WaitlistService {
       }
       throw error;
     }
+  }
+
+  private async sendJoinEmailBestEffort(entry: WaitlistDocument): Promise<void> {
+    if (!this.emailService.isConfigured()) {
+      this.logger.warn(
+        `[email] waitlist welcome skipped for ${entry.email}: email service is not configured`,
+      );
+      return;
+    }
+    const params = {
+      fullName: entry.fullName,
+      city: entry.city,
+      persona: entry.persona,
+    };
+    try {
+      await this.emailService.sendWaitlistWelcomeEmail(entry.email, params);
+    } catch (err) {
+      this.logger.error(
+        `[email] waitlist welcome failed for ${entry.email}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
+    await this.emailService.syncWaitlistContact({
+      email: entry.email,
+      ...params,
+    });
   }
 
   async findAll(query: QueryWaitlistDto) {

@@ -23,14 +23,14 @@ export function getMailgen(): Mailgen {
       name: 'HillSpace',
       link: getPublicFrontendBaseUrl(),
       logo: logoUrl,
-      // Keep email header compact — large logos get clipped in Gmail
+      // Keep email header compact — large logos get clipped in some clients
       logoHeight: '48px',
       copyright: 'HillSpace - Real Estate Marketplace',
     },
   });
 }
 
-/** Generate HTML/text and harden the logo <img> for Gmail/Outlook. */
+/** Generate HTML/text and harden the logo <img> for common email clients. */
 export function renderMail(email: Mailgen.Content): {
   html: string;
   text: string;
