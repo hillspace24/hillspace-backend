@@ -24,6 +24,7 @@ async function exportSwagger() {
       'access-token',
     )
     .addServer('http://localhost:3000', 'Local')
+    .addServer('https://hillspace-backend.onrender.com', 'Render')
     .build();
 
   const document = SwaggerModule.createDocument(app, config);

@@ -23,7 +23,15 @@ async function bootstrap() {
     }),
   );
 
-  const swagger = new DocumentBuilder()
+  const renderUrl = (
+    process.env.RENDER_EXTERNAL_URL?.trim() ||
+    process.env.BACKEND_URL?.trim() ||
+    'https://hillspace-backend.onrender.com'
+  )
+    .replace(/\/$/, '')
+    .replace(/\/api$/, '');
+
+  const swaggerBuilder = new DocumentBuilder()
     .setTitle('HillSpace API')
     .setDescription(
       'Estate management backend — auth, listings, search, verification, escrow',
@@ -32,10 +40,19 @@ async function bootstrap() {
     .addBearerAuth(
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'access-token',
-    )
-    .addServer('http://localhost:3000', 'Local')
-    .build();
+    );
 
+  if (process.env.RENDER_EXTERNAL_URL) {
+    swaggerBuilder
+      .addServer(renderUrl, 'Render')
+      .addServer('http://localhost:3000', 'Local');
+  } else {
+    swaggerBuilder
+      .addServer('http://localhost:3000', 'Local')
+      .addServer(renderUrl, 'Render');
+  }
+
+  const swagger = swaggerBuilder.build();
   const document = SwaggerModule.createDocument(app, swagger);
   SwaggerModule.setup('docs', app, document, {
     jsonDocumentUrl: 'docs-json',
