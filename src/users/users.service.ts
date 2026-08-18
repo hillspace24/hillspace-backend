@@ -21,6 +21,45 @@ export class UsersService {
     return `${user.firstName} ${user.lastName}`.trim();
   }
 
+  async bootstrapAdmin(opts: {
+    email: string;
+    password: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+  }): Promise<{ created: boolean }> {
+    const email = opts.email.trim().toLowerCase();
+    const password = await argon2.hash(opts.password);
+    const existing = await this.userModel.findOne({ email });
+
+    if (existing) {
+      existing.role = Role.ADMIN;
+      existing.isEmailVerified = true;
+      existing.isActive = true;
+      existing.password = password;
+      await existing.save();
+      return { created: false };
+    }
+
+    let phone = opts.phone.trim();
+    const phoneTaken = await this.userModel.findOne({ phone }).lean();
+    if (phoneTaken) {
+      phone = `+234800${Date.now().toString().slice(-7)}`;
+    }
+
+    await this.userModel.create({
+      firstName: opts.firstName,
+      lastName: opts.lastName,
+      email,
+      phone,
+      password,
+      role: Role.ADMIN,
+      isEmailVerified: true,
+      isActive: true,
+    });
+    return { created: true };
+  }
+
   async create(dto: CreateUserDto): Promise<UserDocument> {
     const existing = await this.userModel
       .findOne({ $or: [{ email: dto.email }, { phone: dto.phone }] })

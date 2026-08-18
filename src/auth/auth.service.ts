@@ -3,6 +3,7 @@ import {
   ForbiddenException,
   Injectable,
   Logger,
+  OnModuleInit,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -28,7 +29,7 @@ export type LoginClientMeta = {
 };
 
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
@@ -37,6 +38,38 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
   ) {}
+
+  async onModuleInit(): Promise<void> {
+    const seed = this.configService.get<{
+      email: string;
+      password: string;
+      firstName: string;
+      lastName: string;
+      phone: string;
+    }>('app.adminSeed');
+    if (!seed?.email || !seed.password) {
+      this.logger.warn('Admin seed skipped: ADMIN_EMAIL / ADMIN_PASSWORD missing.');
+      return;
+    }
+    const result = await this.usersService.bootstrapAdmin(seed);
+    this.logger.log(
+      result.created
+        ? `Admin account created (${seed.email}).`
+        : `Admin account ready (${seed.email}).`,
+    );
+  }
+
+  private isPublicAuthEnabled(): boolean {
+    return this.configService.get<boolean>('app.publicAuthEnabled') === true;
+  }
+
+  private assertPublicAuthEnabled(): void {
+    if (!this.isPublicAuthEnabled()) {
+      throw new ForbiddenException(
+        'Public sign-up and sign-in are disabled. Only the admin account can access the dashboard.',
+      );
+    }
+  }
 
   private async sendSignupVerificationMailBestEffort(
     email: string,
@@ -62,6 +95,7 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto) {
+    this.assertPublicAuthEnabled();
     const user = await this.usersService.create(dto);
     const otp = fourDigitOtp();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -89,6 +123,12 @@ export class AuthService {
     const valid = await argon2.verify(user.password, dto.password);
     if (!valid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!this.isPublicAuthEnabled() && user.role !== Role.ADMIN) {
+      throw new ForbiddenException(
+        'Public sign-up and sign-in are disabled. Only the admin account can access the dashboard.',
+      );
     }
 
     if (!user.isEmailVerified && user.role !== Role.ADMIN) {
@@ -133,6 +173,11 @@ export class AuthService {
     }
 
     const user = await this.usersService.findByIdWithSecrets(payload.sub);
+    if (!this.isPublicAuthEnabled() && user.role !== Role.ADMIN) {
+      throw new ForbiddenException(
+        'Public sign-up and sign-in are disabled. Only the admin account can access the dashboard.',
+      );
+    }
     if (!user.refreshTokenHash) {
       throw new ForbiddenException('Access denied');
     }
@@ -157,6 +202,9 @@ export class AuthService {
       'If the email exists, a 4-digit verification code has been sent.';
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
+      return { message };
+    }
+    if (!this.isPublicAuthEnabled() && user.role !== Role.ADMIN) {
       return { message };
     }
     if (!this.emailService.isConfigured()) {
@@ -262,6 +310,7 @@ export class AuthService {
   async requestVerificationCode(
     dto: RequestVerificationCodeDto,
   ): Promise<{ message: string; emailWarning?: string }> {
+    this.assertPublicAuthEnabled();
     const message =
       'If the email exists, a verification code has been sent.';
     const user = await this.usersService.findByEmail(dto.email);

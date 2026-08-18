@@ -113,6 +113,6 @@ npm run swagger:export
 ## Notes
 
 - Email is sent through Brevo (`BREVO_API_KEY` + a verified `BREVO_SENDER_EMAIL`). Optional `BREVO_WAITLIST_LIST_ID` adds waitlist signups to a Brevo contact list.
-- Admins cannot self-register as `admin` via the public register endpoint.
-- Promote an admin by updating the user document in MongoDB.
+- Public register/login are **off** until `PUBLIC_AUTH_ENABLED=true`. Waitlist stays public.
+- An admin is seeded on boot: `hillspace@gmail.com` / `hillspace1234!` (override with `ADMIN_EMAIL` / `ADMIN_PASSWORD`).
 - Escrow does not move real money yet — only tracks deal state for a future payment integration.

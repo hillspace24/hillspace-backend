@@ -35,14 +35,22 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user (sends verification OTP email)' })
+  @ApiOperation({
+    summary: 'Register a new user (sends verification OTP email)',
+    description:
+      'Closed while PUBLIC_AUTH_ENABLED is unset/false. Waitlist remains public.',
+  })
   register(@Body() dto: RegisterDto) {
     return this.authService.register(dto);
   }
 
   @Post('login')
   @HttpCode(200)
-  @ApiOperation({ summary: 'Login and receive JWT tokens' })
+  @ApiOperation({
+    summary: 'Login and receive JWT tokens',
+    description:
+      'While PUBLIC_AUTH_ENABLED is unset/false, only the seeded admin account can sign in.',
+  })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.authService.login(dto, {
       ip: req.ip || req.socket?.remoteAddress,
