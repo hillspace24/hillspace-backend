@@ -13,9 +13,13 @@ async function bootstrap() {
     .map((origin) => origin.trim().replace(/\/$/, ''))
     .filter(Boolean);
   const allowedOrigins = new Set(
-    ['http://localhost:3000', 'http://127.0.0.1:3000', frontendUrl, ...extraOrigins].filter(
-      Boolean,
-    ),
+    [
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://hillspace.com.ng',
+      frontendUrl,
+      ...extraOrigins,
+    ].filter(Boolean),
   );
   const isLocalDevOrigin = (origin: string) =>
     /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
