@@ -25,4 +25,9 @@ export default registerAs('app', () => ({
     apiSecret: process.env.CLOUDINARY_API_SECRET,
     folder: process.env.CLOUDINARY_FOLDER ?? 'hillspace',
   },
+  // Ping /api/health after this much idle time (default 9 minutes). Set KEEP_ALIVE_ENABLED=false to disable.
+  keepAlive: {
+    enabled: String(process.env.KEEP_ALIVE_ENABLED ?? 'true').toLowerCase() !== 'false',
+    idleMs: parseInt(process.env.KEEP_ALIVE_IDLE_MS ?? String(9 * 60 * 1000), 10),
+  },
 }));

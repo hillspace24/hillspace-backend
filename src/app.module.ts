@@ -7,6 +7,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import appConfig from './config/app.config';
 import { EscrowModule } from './escrow/escrow.module';
 import { EmailModule } from './integrations/email/email.module';
+import { HealthModule } from './health/health.module';
 import { ListingsModule } from './listings/listings.module';
 import { MessagesModule } from './messages/messages.module';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -29,6 +30,7 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     }),
     CloudinaryModule,
     EmailModule,
+    HealthModule,
     NotificationsModule,
     UsersModule,
     AuthModule,
