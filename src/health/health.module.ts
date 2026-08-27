@@ -1,4 +1,4 @@
-import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ActivityMiddleware } from './activity.middleware';
 import { ActivityTracker } from './activity.tracker';
@@ -9,9 +9,6 @@ import { KeepAliveService } from './keep-alive.service';
   imports: [ScheduleModule.forRoot()],
   controllers: [HealthController],
   providers: [ActivityTracker, ActivityMiddleware, KeepAliveService],
+  exports: [ActivityTracker, ActivityMiddleware],
 })
-export class HealthModule implements NestModule {
-  configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(ActivityMiddleware).forRoutes('*');
-  }
-}
+export class HealthModule {}

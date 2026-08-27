@@ -171,6 +171,7 @@ export class ListingsController {
         purpose: { type: 'string', example: 'sale' },
         price: { type: 'number', example: 85000000 },
         currency: { type: 'string', example: 'NGN' },
+        inspectionFee: { type: 'number', example: 5000 },
         bedrooms: { type: 'number', example: 4 },
         bathrooms: { type: 'number', example: 5 },
         location: {

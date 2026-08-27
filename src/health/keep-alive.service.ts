@@ -12,6 +12,7 @@ export class KeepAliveService {
   private readonly idleMs: number;
   private readonly targetUrl: string;
   private lastPingAt = 0;
+  private inFlight = false;
 
   constructor(
     private readonly activity: ActivityTracker,
@@ -30,7 +31,7 @@ export class KeepAliveService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async tick(): Promise<void> {
-    if (!this.enabled) {
+    if (!this.enabled || this.inFlight) {
       return;
     }
 
@@ -38,10 +39,11 @@ export class KeepAliveService {
     if (!this.activity.isIdle(this.idleMs)) {
       return;
     }
-    if (now - this.lastPingAt < this.idleMs) {
+    if (this.lastPingAt > 0 && now - this.lastPingAt < this.idleMs) {
       return;
     }
 
+    this.inFlight = true;
     this.lastPingAt = now;
     try {
       const res = await fetch(this.targetUrl, {
@@ -56,14 +58,17 @@ export class KeepAliveService {
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       this.logger.warn(`Keep-alive ping failed: ${message}`);
+    } finally {
+      this.inFlight = false;
     }
   }
 
   private resolveTargetUrl(config: ConfigService): string {
     const port = config.get<number>('app.port') ?? 3000;
+    // Hit the local process so idle detection uses real inbound traffic without
+    // depending on public DNS. RENDER_EXTERNAL_URL remains available as override.
     const base = (
-      process.env.RENDER_EXTERNAL_URL?.trim() ||
-      process.env.BACKEND_URL?.trim() ||
+      process.env.KEEP_ALIVE_URL?.trim() ||
       `http://127.0.0.1:${port}`
     )
       .replace(/\/$/, '')

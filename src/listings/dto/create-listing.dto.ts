@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { plainToInstance, Transform, Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -17,42 +17,13 @@ import {
   PropertyType,
   SpaceKind,
 } from '../../common/enums/listing-status.enum';
-
-/** Parse JSON strings / single values from multipart form-data. */
-function parseJsonField({ value }: { value: unknown }) {
-  if (typeof value !== 'string') return value;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-}
-
-/**
- * Multipart sends location as a JSON string. A bare @Transform returns a plain
- * object and skips @Type, so whitelist rejects address/city/state as unknown.
- */
-function parseLocation({ value }: { value: unknown }) {
-  const parsed = parseJsonField({ value });
-  if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return parsed;
-  }
-  return plainToInstance(LocationDto, parsed);
-}
-
-function parseStringArray({ value }: { value: unknown }) {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== 'string') return value;
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {
-    // fall through
-  }
-  return value.includes(',')
-    ? value.split(',').map((item) => item.trim()).filter(Boolean)
-    : [value];
-}
+import {
+  emptyToUndefined,
+  parseNestedDto,
+  parseStringArray,
+  toNumber,
+  toOptionalNumber,
+} from '../../common/utils/multipart.util';
 
 export class LocationDto {
   @ApiProperty({ example: '12 Admiralty Way' })
@@ -69,23 +40,25 @@ export class LocationDto {
 
   @ApiPropertyOptional({ example: 'Eti-Osa' })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   lga?: string;
 
   @ApiPropertyOptional({ example: 'Nigeria' })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   country?: string;
 
   @ApiPropertyOptional({ example: 6.431 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   lat?: number;
 
   @ApiPropertyOptional({ example: 3.421 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   lng?: number;
 }
@@ -101,6 +74,7 @@ export class CreateListingDto {
 
   @ApiPropertyOptional({ enum: SpaceKind, example: SpaceKind.SINGLE_UNIT })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(SpaceKind)
   spaceKind?: SpaceKind;
 
@@ -114,68 +88,72 @@ export class CreateListingDto {
 
   @ApiPropertyOptional({ enum: ListingCategory })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ListingCategory)
   category?: ListingCategory;
 
   @ApiProperty({ example: 85000000 })
-  @Type(() => Number)
+  @Transform(toNumber)
   @IsNumber()
   @Min(0)
   price: number;
 
   @ApiPropertyOptional({ example: 'NGN' })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   currency?: string;
 
   @ApiPropertyOptional({ enum: PaymentFrequency })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(PaymentFrequency)
   paymentFrequency?: PaymentFrequency;
 
   @ApiPropertyOptional({ example: 5000 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   inspectionFee?: number;
 
   @ApiPropertyOptional({ example: 4 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   bedrooms?: number;
 
   @ApiPropertyOptional({ example: 5 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   bathrooms?: number;
 
   @ApiPropertyOptional({ example: 320 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   areaSqm?: number;
 
   @ApiPropertyOptional({ example: 1800 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   areaSqft?: number;
 
   @ApiPropertyOptional({ example: 2020 })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   yearBuilt?: number;
 
   @ApiPropertyOptional({ example: '1 Indoor' })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   parking?: string;
 
@@ -184,7 +162,7 @@ export class CreateListingDto {
     description:
       'For multipart/form-data, send as a JSON string, e.g. {"address":"...","city":"...","state":"..."}',
   })
-  @Transform(parseLocation)
+  @Transform(parseNestedDto(LocationDto))
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto;
@@ -208,6 +186,7 @@ export class CreateListingDto {
 
   @ApiPropertyOptional({ enum: ListingStatus })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ListingStatus)
   status?: ListingStatus;
 }

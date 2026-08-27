@@ -357,6 +357,7 @@ export class ListingsService {
       lga,
       minPrice,
       maxPrice,
+      inspectionFee,
       bedrooms,
       bathrooms,
       minAreaSqm,
@@ -399,6 +400,9 @@ export class ListingsService {
 
     const price = rangeFilter(minPrice, maxPrice);
     if (price) filter.price = price;
+    if (inspectionFee !== undefined) {
+      filter.inspectionFee = { $lte: inspectionFee };
+    }
     const areaSqm = rangeFilter(minAreaSqm, maxAreaSqm);
     if (areaSqm) filter.areaSqm = areaSqm;
     const areaSqft = rangeFilter(minAreaSqft, maxAreaSqft);

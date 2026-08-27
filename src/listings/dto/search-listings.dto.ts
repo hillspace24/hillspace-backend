@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -19,20 +19,11 @@ import {
   SpaceKind,
 } from '../../common/enums/listing-status.enum';
 import { VerificationStatus } from '../../common/enums/verification-status.enum';
-
-function parseStringArray({ value }: { value: unknown }) {
-  if (Array.isArray(value)) return value;
-  if (typeof value !== 'string') return value;
-  try {
-    const parsed = JSON.parse(value);
-    if (Array.isArray(parsed)) return parsed;
-  } catch {
-    // fall through
-  }
-  return value.includes(',')
-    ? value.split(',').map((item) => item.trim()).filter(Boolean)
-    : [value];
-}
+import {
+  emptyToUndefined,
+  parseStringArray,
+  toOptionalNumber,
+} from '../../common/utils/multipart.util';
 
 export class SearchListingsDto {
   @ApiPropertyOptional({
@@ -41,6 +32,7 @@ export class SearchListingsDto {
     example: 'GRA Port Harcourt',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   q?: string;
 
@@ -49,6 +41,7 @@ export class SearchListingsDto {
     description: 'Filter modal — property type (apartment, house, land, duplex, etc.).',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(PropertyType)
   propertyType?: PropertyType;
 
@@ -63,6 +56,7 @@ export class SearchListingsDto {
     example: ListingPurpose.SALE,
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ListingPurpose)
   purpose?: ListingPurpose;
 
@@ -76,6 +70,7 @@ export class SearchListingsDto {
     example: ListingCategory.TWO_BEDROOM,
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ListingCategory)
   category?: ListingCategory;
 
@@ -84,6 +79,7 @@ export class SearchListingsDto {
     description: 'Filter modal — single unit vs estate.',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(SpaceKind)
   spaceKind?: SpaceKind;
 
@@ -92,6 +88,7 @@ export class SearchListingsDto {
     description: 'Filter modal — rent/sale payment cadence (monthly, yearly, etc.).',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(PaymentFrequency)
   paymentFrequency?: PaymentFrequency;
 
@@ -100,6 +97,7 @@ export class SearchListingsDto {
     description: 'Location filter (case-insensitive). Often paired with Explore header location.',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   city?: string;
 
@@ -108,6 +106,7 @@ export class SearchListingsDto {
     description: 'Location filter (case-insensitive).',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   state?: string;
 
@@ -116,6 +115,7 @@ export class SearchListingsDto {
     description: 'Location filter — LGA (case-insensitive).',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   lga?: string;
 
@@ -124,7 +124,7 @@ export class SearchListingsDto {
     description: 'Filter modal — minimum price (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   minPrice?: number;
@@ -134,10 +134,21 @@ export class SearchListingsDto {
     description: 'Filter modal — maximum price (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   maxPrice?: number;
+
+  @ApiPropertyOptional({
+    example: 5000,
+    description:
+      'Maximum inspection fee (inclusive). Listings with inspectionFee ≤ this value match.',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  inspectionFee?: number;
 
   @ApiPropertyOptional({
     example: 3,
@@ -145,7 +156,7 @@ export class SearchListingsDto {
       'Minimum bedrooms (`>=`). For exact Explore chips prefer `category=2_bedroom` / `3_bedroom`.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   bedrooms?: number;
@@ -155,7 +166,7 @@ export class SearchListingsDto {
     description: 'Minimum bathrooms (`>=`).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   bathrooms?: number;
@@ -165,7 +176,7 @@ export class SearchListingsDto {
     description: 'Filter modal — minimum area in sqm (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   minAreaSqm?: number;
@@ -175,7 +186,7 @@ export class SearchListingsDto {
     description: 'Filter modal — maximum area in sqm (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   maxAreaSqm?: number;
@@ -185,7 +196,7 @@ export class SearchListingsDto {
     description: 'Filter modal — minimum area in sqft (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   minAreaSqft?: number;
@@ -195,7 +206,7 @@ export class SearchListingsDto {
     description: 'Filter modal — maximum area in sqft (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0)
   maxAreaSqft?: number;
@@ -205,7 +216,7 @@ export class SearchListingsDto {
     description: 'Filter modal — minimum year built (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(1800)
   minYearBuilt?: number;
@@ -215,7 +226,7 @@ export class SearchListingsDto {
     description: 'Filter modal — maximum year built (inclusive).',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(1800)
   maxYearBuilt?: number;
@@ -225,6 +236,7 @@ export class SearchListingsDto {
     description: 'Filter modal — case-insensitive substring match on parking.',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsString()
   parking?: string;
 
@@ -258,7 +270,7 @@ export class SearchListingsDto {
       'Nearby / geo filter — center latitude. Must be sent together with `lng` and `radiusKm`.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(-90)
   @Max(90)
@@ -270,7 +282,7 @@ export class SearchListingsDto {
       'Nearby / geo filter — center longitude. Must be sent together with `lat` and `radiusKm`.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(-180)
   @Max(180)
@@ -282,7 +294,7 @@ export class SearchListingsDto {
       'Nearby / geo filter — radius in km around lat/lng. Incomplete triples (missing lat, lng, or radiusKm) are ignored.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(0.1)
   radiusKm?: number;
@@ -293,6 +305,7 @@ export class SearchListingsDto {
       'Listing lifecycle status. **Defaults to `active`** when omitted (Explore/Home only show live listings).',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ListingStatus)
   status?: ListingStatus;
 
@@ -301,6 +314,7 @@ export class SearchListingsDto {
     description: 'Optional verification filter (e.g. show only approved listings).',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(VerificationStatus)
   verificationStatus?: VerificationStatus;
 
@@ -311,12 +325,13 @@ export class SearchListingsDto {
       'Sort order. When `q` is set, results are ranked by text score instead. Values: `newest`, `price_asc`, `price_desc`, `rating`.',
   })
   @IsOptional()
+  @Transform(emptyToUndefined)
   @IsEnum(ListingSortBy)
   sortBy?: ListingSortBy;
 
   @ApiPropertyOptional({ example: 1, default: 1, description: 'Page number (1-based).' })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(1)
   page?: number = 1;
@@ -327,7 +342,7 @@ export class SearchListingsDto {
     description: 'Page size.',
   })
   @IsOptional()
-  @Type(() => Number)
+  @Transform(toOptionalNumber)
   @IsNumber()
   @Min(1)
   limit?: number = 20;

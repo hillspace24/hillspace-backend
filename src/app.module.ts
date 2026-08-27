@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AuthModule } from './auth/auth.module';
@@ -7,6 +7,7 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import appConfig from './config/app.config';
 import { EscrowModule } from './escrow/escrow.module';
 import { EmailModule } from './integrations/email/email.module';
+import { ActivityMiddleware } from './health/activity.middleware';
 import { HealthModule } from './health/health.module';
 import { ListingsModule } from './listings/listings.module';
 import { MessagesModule } from './messages/messages.module';
@@ -43,4 +44,8 @@ import { WaitlistModule } from './waitlist/waitlist.module';
     WaitlistModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(ActivityMiddleware).forRoutes('*');
+  }
+}
