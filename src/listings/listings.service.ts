@@ -33,6 +33,17 @@ function rangeFilter(
   return range;
 }
 
+/** Treat missing fee fields as zero so older listings still match max-fee filters. */
+function maxFeeFilter(
+  field: string,
+  max?: number,
+): Record<string, unknown> | undefined {
+  if (max === undefined) return undefined;
+  return {
+    $or: [{ [field]: { $lte: max } }, { [field]: { $exists: false } }],
+  };
+}
+
 /** Approximate bounding box for radiusKm around lat/lng (degrees). */
 function geoBoundingBox(lat: number, lng: number, radiusKm: number) {
   const latDelta = radiusKm / 111.32;
@@ -358,6 +369,10 @@ export class ListingsService {
       minPrice,
       maxPrice,
       inspectionFee,
+      securityDeposit,
+      serviceCharge,
+      agencyFee,
+      legalFee,
       bedrooms,
       bathrooms,
       minAreaSqm,
@@ -380,6 +395,7 @@ export class ListingsService {
     } = query;
 
     const filter: Record<string, unknown> = {};
+    const andFilters: Record<string, unknown>[] = [];
 
     if (q) {
       filter.$text = { $search: q };
@@ -400,9 +416,20 @@ export class ListingsService {
 
     const price = rangeFilter(minPrice, maxPrice);
     if (price) filter.price = price;
-    if (inspectionFee !== undefined) {
-      filter.inspectionFee = { $lte: inspectionFee };
+
+    for (const clause of [
+      maxFeeFilter('inspectionFee', inspectionFee),
+      maxFeeFilter('securityDeposit', securityDeposit),
+      maxFeeFilter('serviceCharge', serviceCharge),
+      maxFeeFilter('agencyFee', agencyFee),
+      maxFeeFilter('legalFee', legalFee),
+    ]) {
+      if (clause) andFilters.push(clause);
     }
+    if (andFilters.length) {
+      filter.$and = andFilters;
+    }
+
     const areaSqm = rangeFilter(minAreaSqm, maxAreaSqm);
     if (areaSqm) filter.areaSqm = areaSqm;
     const areaSqft = rangeFilter(minAreaSqft, maxAreaSqft);

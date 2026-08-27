@@ -21,6 +21,8 @@ import {
 import { VerificationStatus } from '../../common/enums/verification-status.enum';
 import {
   emptyToUndefined,
+  normalizeListingStatus,
+  normalizePurpose,
   parseStringArray,
   toOptionalNumber,
 } from '../../common/utils/multipart.util';
@@ -56,7 +58,7 @@ export class SearchListingsDto {
     example: ListingPurpose.SALE,
   })
   @IsOptional()
-  @Transform(emptyToUndefined)
+  @Transform(normalizePurpose)
   @IsEnum(ListingPurpose)
   purpose?: ListingPurpose;
 
@@ -149,6 +151,47 @@ export class SearchListingsDto {
   @IsNumber()
   @Min(0)
   inspectionFee?: number;
+
+  @ApiPropertyOptional({
+    example: 150000,
+    description:
+      'Maximum security deposit (inclusive). Listings with securityDeposit ≤ this value match.',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  securityDeposit?: number;
+
+  @ApiPropertyOptional({
+    example: 50000,
+    description: 'Maximum service charge (inclusive).',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  serviceCharge?: number;
+
+  @ApiPropertyOptional({
+    example: 100000,
+    description: 'Maximum agency fee (inclusive).',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  agencyFee?: number;
+
+  @ApiPropertyOptional({
+    example: 50000,
+    description: 'Maximum legal fee (inclusive).',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  legalFee?: number;
 
   @ApiPropertyOptional({
     example: 3,
@@ -305,7 +348,7 @@ export class SearchListingsDto {
       'Listing lifecycle status. **Defaults to `active`** when omitted (Explore/Home only show live listings).',
   })
   @IsOptional()
-  @Transform(emptyToUndefined)
+  @Transform(normalizeListingStatus)
   @IsEnum(ListingStatus)
   status?: ListingStatus;
 

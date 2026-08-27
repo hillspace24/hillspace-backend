@@ -70,3 +70,22 @@ export function parseNestedDto<T extends object>(cls: new () => T) {
     return plainToInstance(cls, parsed);
   };
 }
+
+/** Explore "All" chip sends purpose=all — treat as no filter. */
+export function normalizePurpose({ value }: ValueParam): unknown {
+  const cleaned = emptyToUndefined({ value });
+  if (cleaned === undefined) return undefined;
+  const normalized = String(cleaned).trim().toLowerCase();
+  if (normalized === 'all') return undefined;
+  if (normalized === 'buy') return 'sale';
+  return normalized;
+}
+
+/** Some clients send published instead of active. */
+export function normalizeListingStatus({ value }: ValueParam): unknown {
+  const cleaned = emptyToUndefined({ value });
+  if (cleaned === undefined) return undefined;
+  const normalized = String(cleaned).trim().toLowerCase();
+  if (normalized === 'published') return 'active';
+  return normalized;
+}
