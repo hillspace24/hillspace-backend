@@ -172,6 +172,10 @@ export class ListingsController {
         price: { type: 'number', example: 85000000 },
         currency: { type: 'string', example: 'NGN' },
         inspectionFee: { type: 'number', example: 5000 },
+        securityDeposit: { type: 'number', example: 150000 },
+        serviceCharge: { type: 'number', example: 50000 },
+        agencyFee: { type: 'number', example: 100000 },
+        legalFee: { type: 'number', example: 50000 },
         bedrooms: { type: 'number', example: 4 },
         bathrooms: { type: 'number', example: 5 },
         location: {

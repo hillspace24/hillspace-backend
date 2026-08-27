@@ -90,6 +90,18 @@ export class Listing {
   inspectionFee: number;
 
   @Prop({ min: 0, default: 0 })
+  securityDeposit: number;
+
+  @Prop({ min: 0, default: 0 })
+  serviceCharge: number;
+
+  @Prop({ min: 0, default: 0 })
+  agencyFee: number;
+
+  @Prop({ min: 0, default: 0 })
+  legalFee: number;
+
+  @Prop({ min: 0, default: 0 })
   bedrooms: number;
 
   @Prop({ min: 0, default: 0 })

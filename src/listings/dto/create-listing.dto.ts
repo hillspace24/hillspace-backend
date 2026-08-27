@@ -117,6 +117,40 @@ export class CreateListingDto {
   @Min(0)
   inspectionFee?: number;
 
+  @ApiPropertyOptional({
+    example: 150000,
+    description: 'Refundable caution / security deposit (rentals).',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  securityDeposit?: number;
+
+  @ApiPropertyOptional({
+    example: 50000,
+    description: 'Annual or monthly service / maintenance charge.',
+  })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  serviceCharge?: number;
+
+  @ApiPropertyOptional({ example: 100000, description: 'Agent commission fee.' })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  agencyFee?: number;
+
+  @ApiPropertyOptional({ example: 50000, description: 'Legal / agreement fee.' })
+  @IsOptional()
+  @Transform(toOptionalNumber)
+  @IsNumber()
+  @Min(0)
+  legalFee?: number;
+
   @ApiPropertyOptional({ example: 4 })
   @IsOptional()
   @Transform(toOptionalNumber)
