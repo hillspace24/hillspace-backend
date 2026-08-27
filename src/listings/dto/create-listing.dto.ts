@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Transform, Type } from 'class-transformer';
+import { plainToInstance, Transform, Type } from 'class-transformer';
 import {
   IsArray,
   IsEnum,
@@ -28,6 +28,18 @@ function parseJsonField({ value }: { value: unknown }) {
   }
 }
 
+/**
+ * Multipart sends location as a JSON string. A bare @Transform returns a plain
+ * object and skips @Type, so whitelist rejects address/city/state as unknown.
+ */
+function parseLocation({ value }: { value: unknown }) {
+  const parsed = parseJsonField({ value });
+  if (parsed == null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return parsed;
+  }
+  return plainToInstance(LocationDto, parsed);
+}
+
 function parseStringArray({ value }: { value: unknown }) {
   if (Array.isArray(value)) return value;
   if (typeof value !== 'string') return value;
@@ -42,7 +54,7 @@ function parseStringArray({ value }: { value: unknown }) {
     : [value];
 }
 
-class LocationDto {
+export class LocationDto {
   @ApiProperty({ example: '12 Admiralty Way' })
   @IsString()
   address: string;
@@ -172,7 +184,7 @@ export class CreateListingDto {
     description:
       'For multipart/form-data, send as a JSON string, e.g. {"address":"...","city":"...","state":"..."}',
   })
-  @Transform(parseJsonField)
+  @Transform(parseLocation)
   @ValidateNested()
   @Type(() => LocationDto)
   location: LocationDto;
