@@ -25,6 +25,7 @@ import { Role } from '../common/enums/role.enum';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { CreateEscrowDto } from './dto/create-escrow.dto';
+import { CheckoutEscrowDto } from './dto/checkout-escrow.dto';
 import { DisputeEscrowDto } from './dto/dispute-escrow.dto';
 import { FundEscrowDto } from './dto/fund-escrow.dto';
 import { TransitionEscrowDto } from './dto/transition-escrow.dto';
@@ -72,6 +73,22 @@ export class EscrowController {
     @CurrentUser('role') role: Role,
   ) {
     return this.escrowService.receipt(id, userId, role);
+  }
+
+  @Post(':id/checkout')
+  @Roles(Role.BUYER, Role.ADMIN)
+  @ApiOperation({
+    summary: 'Start AtaraPay escrow or Paystack checkout for a deal',
+    description:
+      'Prefer `atarapay` for true escrow hold/release. `paystack` collects to the merchant balance only (not third-party escrow). Manual bank transfer remains available via POST /fund.',
+  })
+  checkout(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('role') role: Role,
+    @Body() dto: CheckoutEscrowDto,
+  ) {
+    return this.escrowService.checkout(id, userId, role, dto);
   }
 
   @Post(':id/fund')

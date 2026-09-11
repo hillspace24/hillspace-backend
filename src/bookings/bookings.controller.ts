@@ -53,6 +53,26 @@ export class BookingsController {
     return this.bookingsService.confirm(id, userId, role);
   }
 
+  @Post(':id/pay')
+  @ApiOperation({
+    summary: 'Pay inspection fee via Paystack',
+    description:
+      'Returns authorizationUrl / accessCode. After payment, Paystack webhook or GET /payments/paystack/verify?reference=… marks the booking paid.',
+  })
+  pay(
+    @Param('id') id: string,
+    @CurrentUser('sub') userId: string,
+    @CurrentUser('role') role: Role,
+    @Body() body?: { callbackUrl?: string },
+  ) {
+    return this.bookingsService.payInspectionFee(
+      id,
+      userId,
+      role,
+      body?.callbackUrl,
+    );
+  }
+
   @Patch(':id/cancel')
   @ApiOperation({ summary: 'Cancel a booking' })
   cancel(

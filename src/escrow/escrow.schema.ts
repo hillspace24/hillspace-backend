@@ -62,6 +62,21 @@ export class Escrow {
   @Prop()
   fundingReference?: string;
 
+  /** manual | paystack | atarapay */
+  @Prop({ default: 'manual' })
+  paymentProvider?: string;
+
+  /** Paystack reference or AtaraPay order id */
+  @Prop({ index: true })
+  providerReference?: string;
+
+  /** AtaraPay product id we sent (usually escrow refNumber) */
+  @Prop({ index: true })
+  providerProductId?: string;
+
+  @Prop()
+  paidAt?: Date;
+
   /** Review / inspection window end (set on fund). */
   @Prop()
   reviewEndsAt?: Date;

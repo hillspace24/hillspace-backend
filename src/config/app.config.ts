@@ -30,4 +30,25 @@ export default registerAs('app', () => ({
     enabled: String(process.env.KEEP_ALIVE_ENABLED ?? 'true').toLowerCase() !== 'false',
     idleMs: parseInt(process.env.KEEP_ALIVE_IDLE_MS ?? String(9 * 60 * 1000), 10),
   },
+  paystack: {
+    secretKey: process.env.PAYSTACK_SECRET_KEY?.trim() || '',
+    publicKey: process.env.PAYSTACK_PUBLIC_KEY?.trim() || '',
+    baseUrl: process.env.PAYSTACK_BASE_URL?.trim() || 'https://api.paystack.co',
+  },
+  atarapay: {
+    publicKey: process.env.ATARAPAY_PUBLIC_KEY?.trim() || '',
+    privateKey: process.env.ATARAPAY_PRIVATE_KEY?.trim() || '',
+    payUrl:
+      process.env.ATARAPAY_PAY_URL?.trim() ||
+      (String(process.env.ATARAPAY_TEST_MODE ?? 'true').toLowerCase() !== 'false'
+        ? 'http://pay.staging.atarapay.com'
+        : 'https://pay.atarapay.com'),
+    apiUrl:
+      process.env.ATARAPAY_API_URL?.trim() ||
+      (String(process.env.ATARAPAY_TEST_MODE ?? 'true').toLowerCase() !== 'false'
+        ? 'http://test-api.atarapay.com'
+        : 'https://api.atarapay.com'),
+    isMarketplace:
+      String(process.env.ATARAPAY_IS_MARKETPLACE ?? '').toLowerCase() === 'true',
+  },
 }));

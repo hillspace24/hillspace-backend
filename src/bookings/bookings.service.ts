@@ -8,8 +8,11 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Role } from '../common/enums/role.enum';
+import { PaymentProvider } from '../integrations/payments/payment-provider.enum';
+import { PaymentsService } from '../integrations/payments/payments.service';
 import { ListingsService } from '../listings/listings.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { User } from '../users/user.schema';
 import { CreateBookingDto } from './dto/create-booking.dto';
 import {
   Booking,
@@ -23,6 +26,7 @@ export class BookingsService {
   constructor(
     @InjectModel(Booking.name) private readonly bookingModel: Model<Booking>,
     private readonly listingsService: ListingsService,
+    private readonly payments: PaymentsService,
     @Optional() private readonly notificationsService?: NotificationsService,
   ) {}
 
@@ -58,7 +62,7 @@ export class BookingsService {
           data: { bookingId: booking.id, listingId: listing.id },
         });
       } catch {
-        // Booking should succeed even if notification delivery fails
+        // ignore notification failures
       }
     }
 
@@ -90,7 +94,6 @@ export class BookingsService {
       booking.agent?.toString() === userId ||
       (booking.listing as any)?.owner?.toString?.() === userId;
     if (role !== Role.ADMIN && !isParty) {
-      // re-check raw ids if populate changed shape
       const raw = await this.bookingModel.findById(id);
       if (
         !raw ||
@@ -102,10 +105,97 @@ export class BookingsService {
     return booking;
   }
 
+  async payInspectionFee(
+    id: string,
+    userId: string,
+    role: Role,
+    callbackUrl?: string,
+  ) {
+    const booking = await this.getOwnedBooking(id, userId, role, 'buyer');
+    if (booking.fee <= 0) {
+      throw new BadRequestException('This booking has no inspection fee');
+    }
+    if (
+      booking.paymentStatus === BookingPaymentStatus.PAID ||
+      booking.paymentStatus === BookingPaymentStatus.MARKED_PAID
+    ) {
+      throw new BadRequestException('Booking is already paid');
+    }
+
+    this.payments.paystack.assertConfigured();
+    const populated = await this.bookingModel
+      .findById(id)
+      .populate('buyer', 'email firstName lastName');
+    const buyer = populated?.buyer as unknown as User;
+    if (!buyer?.email) {
+      throw new BadRequestException('Buyer email is required to pay');
+    }
+
+    const reference = `hs_booking_${booking.id}_${Date.now()}`;
+    const init = await this.payments.paystack.initialize({
+      email: buyer.email,
+      amountNaira: booking.fee,
+      reference,
+      callbackUrl:
+        callbackUrl || this.payments.paystackBookingCallbackUrl(booking.id),
+      metadata: {
+        type: 'booking',
+        bookingId: booking.id,
+      },
+    });
+
+    booking.paymentProvider = PaymentProvider.PAYSTACK;
+    booking.paymentReference = init.reference;
+    booking.paymentStatus = BookingPaymentStatus.PENDING;
+    await booking.save();
+
+    return {
+      bookingId: booking.id,
+      provider: PaymentProvider.PAYSTACK,
+      amount: booking.fee,
+      authorizationUrl: init.authorizationUrl,
+      accessCode: init.accessCode,
+      reference: init.reference,
+      publicKey: this.payments.paystack.getPublicKey(),
+    };
+  }
+
+  async markPaidByProvider(input: {
+    bookingId: string;
+    reference: string;
+    provider: PaymentProvider;
+  }): Promise<BookingDocument | null> {
+    let booking: BookingDocument | null = null;
+    if (input.bookingId && Types.ObjectId.isValid(input.bookingId)) {
+      booking = await this.bookingModel.findById(input.bookingId);
+    }
+    if (!booking && input.reference) {
+      booking = await this.bookingModel.findOne({
+        paymentReference: input.reference,
+      });
+    }
+    if (!booking) return null;
+
+    if (
+      booking.paymentStatus === BookingPaymentStatus.PAID ||
+      booking.paymentStatus === BookingPaymentStatus.MARKED_PAID
+    ) {
+      return booking;
+    }
+
+    booking.paymentStatus = BookingPaymentStatus.PAID;
+    booking.paymentProvider = input.provider;
+    booking.paymentReference = input.reference;
+    booking.paidAt = new Date();
+    return booking.save();
+  }
+
   async confirm(id: string, userId: string, role: Role) {
     const booking = await this.getOwnedBooking(id, userId, role, 'agent');
     booking.status = BookingStatus.CONFIRMED;
-    booking.paymentStatus = BookingPaymentStatus.MARKED_PAID;
+    if (booking.paymentStatus === BookingPaymentStatus.UNPAID) {
+      booking.paymentStatus = BookingPaymentStatus.MARKED_PAID;
+    }
     await booking.save();
 
     if (this.notificationsService) {
@@ -132,7 +222,9 @@ export class BookingsService {
     return booking.save();
   }
 
-  private refId(ref: Types.ObjectId | { _id?: Types.ObjectId } | string | null | undefined): string {
+  private refId(
+    ref: Types.ObjectId | { _id?: Types.ObjectId } | string | null | undefined,
+  ): string {
     if (!ref) return '';
     if (typeof ref === 'string') return ref;
     if (typeof ref === 'object' && '_id' in ref && ref._id) {
@@ -145,7 +237,7 @@ export class BookingsService {
     id: string,
     userId: string,
     role: Role,
-    who: 'agent' | 'any',
+    who: 'agent' | 'buyer' | 'any',
   ): Promise<BookingDocument> {
     const booking = await this.bookingModel.findById(id);
     if (!booking) throw new NotFoundException('Booking not found');
@@ -154,6 +246,10 @@ export class BookingsService {
     if (who === 'agent') {
       if (booking.agent?.toString() !== userId) {
         throw new ForbiddenException('Only the agent/owner can confirm');
+      }
+    } else if (who === 'buyer') {
+      if (booking.buyer.toString() !== userId) {
+        throw new ForbiddenException('Only the buyer can pay for this booking');
       }
     } else {
       const isParty =

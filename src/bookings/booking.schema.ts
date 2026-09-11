@@ -17,6 +17,8 @@ export enum BookingStatus {
 
 export enum BookingPaymentStatus {
   UNPAID = 'unpaid',
+  PENDING = 'pending',
+  PAID = 'paid',
   MARKED_PAID = 'marked_paid',
 }
 
@@ -60,6 +62,15 @@ export class Booking {
     default: BookingPaymentStatus.UNPAID,
   })
   paymentStatus: BookingPaymentStatus;
+
+  @Prop()
+  paymentProvider?: string;
+
+  @Prop({ index: true })
+  paymentReference?: string;
+
+  @Prop()
+  paidAt?: Date;
 }
 
 export const BookingSchema = SchemaFactory.createForClass(Booking);
