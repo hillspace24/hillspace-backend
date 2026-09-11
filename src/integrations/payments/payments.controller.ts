@@ -8,6 +8,7 @@ import {
   Query,
   Req,
   Res,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
@@ -25,9 +26,7 @@ export class PaymentsController {
     private readonly payments: PaymentsService,
     private readonly escrowService: EscrowService,
     private readonly bookingsService: BookingsService,
-  ) {
-    this.payments.logProviders();
-  }
+  ) {}
 
   @Get('providers')
   @ApiOperation({ summary: 'Which payment providers are configured' })
@@ -45,7 +44,7 @@ export class PaymentsController {
         useFor: ['escrow_hold_release'],
         docs: 'https://plugins.atarapay.com/docs/',
       },
-      note: 'Prefer AtaraPay for property escrow. Paystack does not hold third-party escrow.',
+      note: 'Prefer AtaraPay for property escrow. Paystack does not hold third-party escrow. Missing keys do not block the rest of the API.',
     };
   }
 
@@ -61,6 +60,13 @@ export class PaymentsController {
     @Body() body: Record<string, unknown>,
     @Res() res: Response,
   ) {
+    if (!this.payments.atarapay.isConfigured()) {
+      return res.status(503).json({
+        ok: false,
+        message:
+          'AtaraPay is not configured yet. Set ATARAPAY_PUBLIC_KEY and ATARAPAY_PRIVATE_KEY.',
+      });
+    }
     const payload = { ...query, ...body };
     const result = await this.escrowService.handleAtaraPayCallback(payload);
     if (result.redirect) {
@@ -74,6 +80,13 @@ export class PaymentsController {
     summary: 'AtaraPay order status notifications (accept/reject/deliver/cancel)',
   })
   async atarapayWebhook(@Body() body: Record<string, any>) {
+    if (!this.payments.atarapay.isConfigured()) {
+      this.logger.warn('AtaraPay webhook received but keys are not configured');
+      return {
+        ok: false,
+        message: 'AtaraPay is not configured',
+      };
+    }
     const escrow = await this.escrowService.handleAtaraPayNotification(body);
     return {
       ok: true,
@@ -89,6 +102,11 @@ export class PaymentsController {
     @Headers('x-paystack-signature') signature: string,
     @Body() body: Record<string, any>,
   ) {
+    if (!this.payments.paystack.isConfigured()) {
+      this.logger.warn('Paystack webhook received but keys are not configured');
+      return { ok: false, message: 'Paystack is not configured' };
+    }
+
     const raw =
       req.rawBody ||
       Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
@@ -130,6 +148,15 @@ export class PaymentsController {
     summary: 'Verify a Paystack reference and apply to escrow or booking',
   })
   async verifyPaystack(@Query('reference') reference: string) {
+    if (!this.payments.paystack.isConfigured()) {
+      throw new ServiceUnavailableException(
+        'Paystack is not configured. Set PAYSTACK_SECRET_KEY.',
+      );
+    }
+    if (!reference?.trim()) {
+      return { ok: false, message: 'reference is required' };
+    }
+
     const verified = await this.payments.paystack.verify(reference);
     if (verified.status !== 'success') {
       return { ok: false, verified };
